@@ -1,0 +1,5 @@
+{
+  "name": "Copy of DataStat AI",
+  "description": "A Stata-inspired data analysis and research assistant powered by Gemini. Upload datasets, run natural language commands, and visualize results.",
+  "requestFramePermissions": []
+}
