@@ -1,26 +1,31 @@
-import { DataRow, VariableSummary, LogEntry, LogType } from '../types';
-import { generateSummaries, formatStataTable } from '../utils/dataUtils';
+
+import { DataRow, VariableSummary, LogEntry, LogType, Dataset, getActiveSheet } from '../types';
+import { generateSummaries, formatStataTable, mergeDatasets } from '../utils/dataUtils';
 
 interface InterpretResult {
   handled: boolean;
   logs?: LogEntry[];
   newData?: DataRow[];
   newSummaries?: VariableSummary[];
+  action?: 'SWITCH_FRAME';
+  targetFrameId?: string;
 }
 
-// Basic Stata-like interpreter
 export const interpretStataCommand = (
   command: string, 
-  data: DataRow[], 
-  summaries: VariableSummary[]
+  activeDataset: Dataset,
+  allDatasets: Dataset[]
 ): InterpretResult => {
   const cmd = command.trim();
   const parts = cmd.split(/\s+/);
   const keyword = parts[0].toLowerCase();
+  
+  const activeSheet = getActiveSheet(activeDataset);
+  const data = activeSheet.data;
+  const summaries = activeSheet.summaries;
 
-  // Create log helper
   const createLog = (content: string, type: LogType = LogType.RESPONSE_TEXT): LogEntry => ({
-    id: Date.now().toString(),
+    id: Date.now().toString() + Math.random(),
     timestamp: Date.now(),
     type,
     content
@@ -37,10 +42,9 @@ export const interpretStataCommand = (
       return { handled: true, logs: [createLog(`Variable(s) not found`, LogType.ERROR)] };
     }
 
-    const header = `Contains data\n  obs: ${data.length}\n vars: ${targetVars.length}\n\nVariable      Storage   Display    Value\nname          type      format     label      Variable label\n-------------------------------------------------------------`;
+    const header = `Contains data from ${activeDataset.name} (Sheet: ${activeDataset.activeSheetName})\n  obs: ${data.length}\n vars: ${targetVars.length}\n\nVariable      Storage   Display    Value\nname          type      format     label      Variable label\n-------------------------------------------------------------`;
     const rows = targetVars.map(v => {
       const type = v.type === 'number' ? 'float' : 'str';
-      // Simple mock formatting for display
       return `${v.name.padEnd(13)} ${type.padEnd(9)} %9.0g                 `;
     }).join('\n');
 
@@ -55,7 +59,7 @@ export const interpretStataCommand = (
     const varList = parts.slice(1);
     const targetSummaries = varList.length > 0 
       ? summaries.filter(s => varList.includes(s.name))
-      : summaries.filter(s => s.type === 'number'); // Default to numeric only for simple summary
+      : summaries.filter(s => s.type === 'number');
 
     if (targetSummaries.length === 0) {
        return { handled: true, logs: [createLog("No numeric variables to summarize.", LogType.RESPONSE_TEXT)] };
@@ -63,7 +67,6 @@ export const interpretStataCommand = (
 
     const headers = ['Variable', 'Obs', 'Mean', 'Std. Dev.', 'Min', 'Max'];
     const tableRows = targetSummaries.map(s => {
-      // Calculate Std Dev on the fly for the table
       const values = s.sample.length > 0 
         ? data.map(d => d[s.name] as number).filter(v => typeof v === 'number') 
         : [];
@@ -92,10 +95,9 @@ export const interpretStataCommand = (
 
   // --- COMMAND: LIST (l) ---
   if (keyword === 'list' || keyword === 'l') {
-    // Parse "in 1/10"
     const inIndex = parts.indexOf('in');
     let start = 0;
-    let end = 5; // Default short list
+    let end = 5; 
     let cols = parts.slice(1);
 
     if (inIndex !== -1) {
@@ -111,14 +113,11 @@ export const interpretStataCommand = (
          end = start + 1;
       }
     } else if (parts.length === 1) {
-        // default list 5
         end = Math.min(data.length, 5);
     } else {
-        // list varname (all? limit to 20 for safety)
         end = Math.min(data.length, 20);
     }
 
-    // Filter columns
     const allColNames = summaries.map(s => s.name);
     const validCols = cols.length > 0 
         ? cols.filter(c => allColNames.includes(c))
@@ -140,47 +139,89 @@ export const interpretStataCommand = (
     };
   }
 
+  // --- COMMAND: MERGE ---
+  // Syntax: merge 1:1 keyvar using filename
+  if (keyword === 'merge') {
+      // Very basic parser: merge 1:1 varname using filename
+      // Indices: 0=merge, 1=1:1, 2=varname, 3=using, 4=filename
+      if (parts[1] !== '1:1' || parts[3] !== 'using') {
+          return { handled: true, logs: [createLog("Only 'merge 1:1 varname using filename' is supported currently.", LogType.ERROR)] };
+      }
+      
+      const keyVar = parts[2];
+      const usingName = parts[4].replace(/"/g, ''); // strip quotes
+      
+      // Find the dataset
+      const usingDataset = allDatasets.find(d => d.name === usingName);
+      if (!usingDataset) {
+          const avail = allDatasets.map(d => d.name).join(', ');
+          return { handled: true, logs: [createLog(`Dataset '${usingName}' not found. Available: ${avail}`, LogType.ERROR)] };
+      }
+      
+      const usingSheetData = getActiveSheet(usingDataset).data;
+      
+      // Validate key
+      if (!summaries.find(s => s.name === keyVar)) {
+          return { handled: true, logs: [createLog(`Variable '${keyVar}' not found in master data.`, LogType.ERROR)] };
+      }
+      
+      // Perform merge
+      try {
+          const result = mergeDatasets(data, usingSheetData, keyVar);
+          const newCols = Object.keys(result.mergedData[0]);
+          const newSummaries = generateSummaries(result.mergedData, newCols);
+          
+          return {
+              handled: true,
+              logs: [createLog(result.report)],
+              newData: result.mergedData,
+              newSummaries: newSummaries
+          };
+      } catch (e) {
+          return { handled: true, logs: [createLog(`Merge failed: ${e}`, LogType.ERROR)] };
+      }
+  }
+  
+  // --- COMMAND: FRAME CHANGE ---
+  // syntax: frame change framename (or dataset name in our case)
+  if (keyword === 'frame' && parts[1] === 'change') {
+      const targetName = parts.slice(2).join(' ').replace(/"/g, '');
+      const target = allDatasets.find(d => d.name === targetName);
+      if (target) {
+           return {
+               handled: true,
+               logs: [createLog(`Switched to frame ${target.name}`)],
+               action: 'SWITCH_FRAME',
+               targetFrameId: target.id
+           };
+      } else {
+           return { handled: true, logs: [createLog(`Frame ${targetName} not found.`, LogType.ERROR)] };
+      }
+  }
+
   // --- COMMAND: GENERATE (gen, generate) ---
   if (keyword === 'generate' || keyword === 'gen') {
-    // Syntax: gen newvar = expression
     const eqIndex = parts.indexOf('=');
-    if (eqIndex === -1) {
+    if (eqIndex === -1 || eqIndex !== 2) {
        return { handled: true, logs: [createLog("Invalid syntax. Usage: generate newvar = expression", LogType.ERROR)] };
     }
 
     const newVarName = parts[1];
-    if (eqIndex !== 2) { // gen var = ...
-        return { handled: true, logs: [createLog("Invalid syntax. Usage: generate newvar = expression", LogType.ERROR)] };
-    }
-
     if (summaries.find(s => s.name === newVarName)) {
         return { handled: true, logs: [createLog(`Variable ${newVarName} already exists.`, LogType.ERROR)] };
     }
 
-    // Join the rest as expression
     let expression = parts.slice(eqIndex + 1).join(' ');
-    
-    // Replace variable names with row lookups for evaluation
-    // We sort variables by length desc to avoid replacing substrings (e.g. replacing 'temp' inside 'temperature')
     const sortedVars = [...summaries].sort((a, b) => b.name.length - a.name.length);
-    
-    // Convert Stata power operator ^ to JS **
     expression = expression.replace(/\^/g, '**');
 
     try {
         const newData = data.map(row => {
-            // Create a function scope with variables
-            // This is a simple safe-ish eval by using Function constructor with args
             const keys = sortedVars.map(v => v.name);
             const values = keys.map(k => {
                 const val = row[k];
                 return (val === null || val === undefined) ? NaN : val;
             });
-            
-            // Basic support for arithmetic. 
-            // Note: This matches whole words to avoid replacing "a" in "apple"
-            // But strict "eval" with `with` is deprecated.
-            // We'll use a Function constructor.
             
             const func = new Function(...keys, `return ${expression};`);
             let result = func(...values);
@@ -188,7 +229,6 @@ export const interpretStataCommand = (
             if (typeof result === 'number' && (isNaN(result) || !isFinite(result))) {
                 result = null;
             }
-            
             return { ...row, [newVarName]: result };
         });
 
@@ -226,12 +266,6 @@ export const interpretStataCommand = (
           newData,
           newSummaries
       };
-  }
-
-  // --- COMMAND: CLEAR ---
-  if (keyword === 'clear') {
-      // Handled in App.tsx but we can signal here
-      return { handled: false }; // Let App handle clear or custom handle
   }
   
   // --- COMMAND: COUNT ---

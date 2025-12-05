@@ -1,3 +1,4 @@
+
 export interface DataRow {
   [key: string]: string | number | null;
 }
@@ -26,8 +27,11 @@ export interface ChartConfig {
   type: 'bar' | 'line' | 'scatter' | 'area' | 'pie';
   title: string;
   xAxisKey: string;
-  yAxisKey: string | string[]; // Single key or multiple for multi-line
+  yAxisKey: string | string[]; 
   description?: string;
+  // Multi-dimensional additions
+  groupBy?: string; // Color by
+  sizeBy?: string;  // Size by (for scatter)
 }
 
 export interface LogEntry {
@@ -37,9 +41,22 @@ export interface LogEntry {
   content: string | ChartConfig;
 }
 
-export interface DatasetState {
-  fileName: string | null;
+export interface SheetData {
   data: DataRow[];
   columns: string[];
   summaries: VariableSummary[];
 }
+
+export interface Dataset {
+  id: string;
+  name: string;
+  sheets: { [sheetName: string]: SheetData };
+  activeSheetName: string;
+}
+
+export type Language = 'en' | 'zh-CN' | 'zh-TW' | 'ja' | 'ko';
+
+// Helper to get active sheet data easily
+export const getActiveSheet = (dataset: Dataset): SheetData => {
+  return dataset.sheets[dataset.activeSheetName];
+};

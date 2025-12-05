@@ -22,9 +22,14 @@ interface ChartRendererProps {
   data: DataRow[];
 }
 
+const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
   // Limit data points for performance if too large
   const displayData = data.length > 2000 ? data.slice(0, 2000) : data;
+
+  // Normalize yAxisKey to array for unified handling
+  const yKeys = Array.isArray(config.yAxisKey) ? config.yAxisKey : [config.yAxisKey];
 
   const renderChart = () => {
     switch (config.type) {
@@ -36,7 +41,9 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) =>
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey={config.yAxisKey} fill="#3b82f6" />
+            {yKeys.map((key, index) => (
+              <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} />
+            ))}
           </BarChart>
         );
       case 'line':
@@ -47,7 +54,16 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) =>
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey={config.yAxisKey} stroke="#3b82f6" dot={false} strokeWidth={2} />
+            {yKeys.map((key, index) => (
+              <Line 
+                key={key} 
+                type="monotone" 
+                dataKey={key} 
+                stroke={COLORS[index % COLORS.length]} 
+                dot={false} 
+                strokeWidth={2} 
+              />
+            ))}
           </LineChart>
         );
       case 'area':
@@ -57,18 +73,31 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) =>
             <XAxis dataKey={config.xAxisKey} />
             <YAxis />
             <Tooltip />
-            <Area type="monotone" dataKey={config.yAxisKey} stroke="#3b82f6" fill="#93c5fd" />
+            <Legend />
+            {yKeys.map((key, index) => (
+              <Area 
+                key={key} 
+                type="monotone" 
+                dataKey={key} 
+                stroke={COLORS[index % COLORS.length]} 
+                fill={COLORS[index % COLORS.length]} 
+                fillOpacity={0.3}
+              />
+            ))}
           </AreaChart>
         );
       case 'scatter':
+        // Scatter usually compares 2 variables directly, but we can support multiple series if needed
+        // For simplicity, we stick to the first Y key vs X key for scatter basic behavior, 
+        // or iterate if we wanted multiple scatter groups sharing an X.
         return (
           <ScatterChart>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" dataKey={config.xAxisKey} name={config.xAxisKey} />
-            <YAxis type="number" dataKey={config.yAxisKey} name={config.yAxisKey as string} />
+            <YAxis type="number" dataKey={yKeys[0]} name={yKeys[0]} />
             <Tooltip cursor={{ strokeDasharray: '3 3' }} />
             <Legend />
-            <Scatter name={`${config.xAxisKey} vs ${config.yAxisKey}`} data={displayData} fill="#3b82f6" />
+            <Scatter name={`${config.xAxisKey} vs ${yKeys[0]}`} data={displayData} fill={COLORS[0]} />
           </ScatterChart>
         );
       default:
@@ -77,10 +106,12 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) =>
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mt-4">
-      <h3 className="text-lg font-semibold text-gray-800 mb-1">{config.title}</h3>
-      {config.description && <p className="text-sm text-gray-500 mb-4">{config.description}</p>}
-      <div className="h-[300px] w-full">
+    <div className="h-full w-full flex flex-col bg-white">
+      <div className="mb-2">
+         <h3 className="text-lg font-semibold text-gray-800 leading-tight">{config.title}</h3>
+         {config.description && <p className="text-xs text-gray-500">{config.description}</p>}
+      </div>
+      <div className="flex-1 min-h-0 w-full">
         <ResponsiveContainer width="100%" height="100%">
           {renderChart()}
         </ResponsiveContainer>
