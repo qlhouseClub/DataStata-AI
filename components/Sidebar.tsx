@@ -40,8 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex gap-2">
           <label className="flex-1 cursor-pointer bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-1.5 px-3 rounded text-sm flex items-center justify-center gap-2 transition-colors">
             <Upload className="w-4 h-4" />
-            Load CSV
-            <input type="file" accept=".csv" onChange={onUpload} className="hidden" />
+            Load Data
+            <input type="file" accept=".csv,.xls,.xlsx" onChange={onUpload} className="hidden" />
           </label>
         </div>
         
@@ -79,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
       
       <div className="p-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-400">
-        v1.0.0 • React + Gemini
+        v1.1.0 • React + Gemini
       </div>
     </div>
   );

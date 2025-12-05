@@ -1,4 +1,24 @@
 import { DataRow, VariableSummary } from '../types';
+import { read, utils } from 'xlsx';
+
+export const parseExcel = (buffer: ArrayBuffer): DataRow[] => {
+  try {
+    const workbook = read(buffer, { type: 'array' });
+    if (workbook.SheetNames.length === 0) return [];
+    
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert to JSON. sheet_to_json treats the first row as headers by default.
+    // defval: null ensures empty cells are null, similar to our CSV parser.
+    const data = utils.sheet_to_json(worksheet, { defval: null }) as DataRow[];
+    
+    return data;
+  } catch (error) {
+    console.error("Error parsing Excel file:", error);
+    return [];
+  }
+};
 
 export const parseCSV = (csvText: string): DataRow[] => {
   const lines = csvText.split(/\r?\n/).filter((line) => line.trim() !== '');
@@ -71,4 +91,27 @@ export const generateSummaries = (data: DataRow[], columns: string[]): VariableS
   });
 
   return summaries;
+};
+
+// Helper to format data into a fixed-width Stata-style table
+export const formatStataTable = (headers: string[], rows: (string | number | null)[][]): string => {
+  if (headers.length === 0) return '';
+
+  // Calculate widths
+  const widths = headers.map((h, i) => {
+    const maxDataLen = Math.max(...rows.map(r => String(r[i] ?? '').length));
+    return Math.max(h.length, maxDataLen, 10) + 2; // +2 for padding
+  });
+
+  const headerRow = headers.map((h, i) => h.padStart(widths[i])).join('');
+  const separator = widths.map(w => '-'.repeat(w)).join('');
+  
+  const body = rows.map(row => {
+    return row.map((cell, i) => {
+      const val = cell === null ? '.' : String(cell);
+      return val.padStart(widths[i]);
+    }).join('');
+  }).join('\n');
+
+  return `${headerRow}\n${separator}\n${body}`;
 };

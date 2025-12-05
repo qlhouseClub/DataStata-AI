@@ -47,7 +47,7 @@ export const analyzeData = async (
   const ai = getClient();
   
   const context = `
-    You are DataStat AI, an expert statistical assistant similar to Stata but with natural language capabilities.
+    You are DataStat AI, an expert statistical assistant similar to Stata.
     
     Current Dataset Context:
     The user has loaded a dataset with the following variables (columns):
@@ -61,12 +61,27 @@ export const analyzeData = async (
     Instructions:
     1. Analyze the user's query in the context of the dataset.
     2. If the user asks for a plot, graph, or visualization, set intent to 'CHART' and provide a valid 'chartConfig'. 
-       - Ensure 'xAxisKey' and 'yAxisKey' match exactly one of the variable names provided in the summaries.
-       - Choose the most appropriate chart type (scatter for correlation, bar for comparison, etc.).
-    3. If the user asks for a regression, summary, or explanation, set intent to 'ANALYSIS' and provide a detailed 'textResponse'.
-       - You cannot run actual regressions, but you can interpret the provided summary statistics (mean, min, max) or explain how one would analyze it.
-       - If the user asks "summarize", use the provided summary stats to write a nice report.
-    4. Be concise, professional, and accurate. Use markdown for the text response.
+    3. If the user asks for a regression, t-test, advanced summary, or explanation:
+       - Set intent to 'ANALYSIS'.
+       - **CRITICAL**: Format your output to look exactly like Stata's ASCII output tables. 
+       - Use fixed-width fonts (markdown code blocks) for tables.
+       - Example of regression style:
+         \`\`\`
+               Source |       SS       df       MS              Number of obs = ...
+         -------------+------------------------------           F(  1,   72) = ...
+                Model | ...                                     Prob > F      = ...
+             Residual | ...                                     R-squared     = ...
+         -------------+------------------------------           Adj R-squared = ...
+                Total | ...                                     Root MSE      = ...
+         ------------------------------------------------------------------------------
+                price |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+         -------------+----------------------------------------------------------------
+                  mpg |  -238.8943   57.47701    -4.16   0.000    -353.4763   -124.3124
+                _cons |   11253.06   1170.813     9.61   0.000     8919.088    13587.03
+         ------------------------------------------------------------------------------
+         \`\`\`
+       - You cannot run actual regressions on the full dataset (you only have summaries), so perform a "synthetic analysis" based on the summaries provided (mean, min, max) and general knowledge of these variable types. Clearly state if these are estimated or illustrative results.
+    4. Be concise and professional.
   `;
 
   try {
@@ -76,7 +91,7 @@ export const analyzeData = async (
       config: {
         responseMimeType: 'application/json',
         responseSchema: analysisSchema,
-        systemInstruction: "You are a helpful, precise data analysis assistant.",
+        systemInstruction: "You are a Stata emulator. Prefer technical accuracy and ASCII table formatting for statistical queries.",
       }
     });
 

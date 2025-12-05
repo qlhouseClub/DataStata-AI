@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Console } from './components/Console';
 import { DataGrid } from './components/DataGrid';
-import { DatasetState, LogEntry, LogType } from './types';
-import { parseCSV, generateSummaries } from './utils/dataUtils';
+import { DatasetState, LogEntry, LogType, DataRow } from './types';
+import { parseCSV, generateSummaries, parseExcel } from './utils/dataUtils';
 import { analyzeData } from './services/geminiService';
+import { interpretStataCommand } from './services/stataInterpreter';
 import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -25,7 +26,7 @@ const App: React.FC = () => {
         setApiKeyError(true);
         addLog(LogType.ERROR, "API Key is missing. Please ensure process.env.API_KEY is configured.");
     } else {
-        addLog(LogType.SYSTEM, "System ready. Upload a CSV file to begin analysis.");
+        addLog(LogType.SYSTEM, "System ready. Upload a CSV, XLS, or XLSX file to begin analysis.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -47,11 +48,21 @@ const App: React.FC = () => {
     addLog(LogType.SYSTEM, `Loading ${file.name}...`);
     setIsProcessing(true);
 
+    const isExcel = file.name.endsWith('.xls') || file.name.endsWith('.xlsx');
     const reader = new FileReader();
+
     reader.onload = (event) => {
-      const text = event.target?.result as string;
       try {
-        const data = parseCSV(text);
+        let data: DataRow[] = [];
+        
+        if (isExcel) {
+             const buffer = event.target?.result as ArrayBuffer;
+             data = parseExcel(buffer);
+        } else {
+             const text = event.target?.result as string;
+             data = parseCSV(text);
+        }
+
         if (data.length === 0) throw new Error("Empty dataset");
         
         const columns = Object.keys(data[0]);
@@ -67,12 +78,17 @@ const App: React.FC = () => {
         addLog(LogType.SYSTEM, `Dataset loaded successfully. ${data.length} observations, ${columns.length} variables.`);
         setIsDataViewOpen(true);
       } catch (err) {
-        addLog(LogType.ERROR, `Failed to parse CSV: ${err}`);
+        addLog(LogType.ERROR, `Failed to parse file: ${err}`);
       } finally {
         setIsProcessing(false);
       }
     };
-    reader.readAsText(file);
+
+    if (isExcel) {
+        reader.readAsArrayBuffer(file);
+    } else {
+        reader.readAsText(file);
+    }
   };
 
   const handleCommand = async (command: string) => {
@@ -84,9 +100,15 @@ const App: React.FC = () => {
 
     addLog(LogType.COMMAND, command);
 
-    // Basic client-side commands override
+    // 1. Client-side Commands
     if (command.toLowerCase() === 'clear') {
-        setLogs([]);
+        if (dataset.data.length > 0) {
+             setDataset({ fileName: null, data: [], columns: [], summaries: [] });
+             setLogs([]); // Optional: clear logs too or just data? Stata clear clears data.
+             addLog(LogType.SYSTEM, "Data cleared from memory.");
+        } else {
+             setLogs([]);
+        }
         return;
     }
     
@@ -95,8 +117,25 @@ const App: React.FC = () => {
         return;
     }
 
-    setIsProcessing(true);
+    // 2. Try Stata Interpreter
+    const stataResult = interpretStataCommand(command, dataset.data, dataset.summaries);
+    if (stataResult.handled) {
+        if (stataResult.logs) {
+            stataResult.logs.forEach(log => addLog(log.type, log.content));
+        }
+        if (stataResult.newData && stataResult.newSummaries) {
+            setDataset(prev => ({
+                ...prev,
+                data: stataResult.newData!,
+                summaries: stataResult.newSummaries!,
+                columns: stataResult.newSummaries!.map(s => s.name)
+            }));
+        }
+        return;
+    }
 
+    // 3. Fallback to Gemini
+    setIsProcessing(true);
     try {
         const sampleRows = dataset.data.slice(0, 3);
         const analysis = await analyzeData(command, dataset.summaries, sampleRows);
