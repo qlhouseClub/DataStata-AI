@@ -25,7 +25,15 @@ export const translations = {
     colorBy: "Color By (Group)",
     sizeBy: "Size By (Weight)",
     select: "Select...",
-    ready: "System Ready"
+    ready: "System Ready",
+    bar: "Bar Chart",
+    line: "Line Chart",
+    area: "Area Chart",
+    scatter: "Scatter Plot",
+    pie: "Pie Chart",
+    radar: "Radar Chart",
+    donut: "Donut Chart",
+    treemap: "Treemap"
   },
   'zh-CN': {
     title: "DataStata.AI",
@@ -50,7 +58,15 @@ export const translations = {
     colorBy: "颜色分组",
     sizeBy: "大小权重",
     select: "请选择...",
-    ready: "系统就绪"
+    ready: "系统就绪",
+    bar: "柱状图",
+    line: "折线图",
+    area: "面积图",
+    scatter: "散点图",
+    pie: "饼状图",
+    radar: "雷达图",
+    donut: "环状图",
+    treemap: "矩阵图 (Treemap)"
   },
   'zh-TW': {
     title: "DataStata.AI",
@@ -75,7 +91,15 @@ export const translations = {
     colorBy: "顏色分組",
     sizeBy: "大小權重",
     select: "請選擇...",
-    ready: "系統就緒"
+    ready: "系統就緒",
+    bar: "柱狀圖",
+    line: "折線圖",
+    area: "面積圖",
+    scatter: "散點圖",
+    pie: "餅狀圖",
+    radar: "雷達圖",
+    donut: "環狀圖",
+    treemap: "矩陣圖"
   },
   'ja': {
     title: "DataStata.AI",
@@ -100,7 +124,15 @@ export const translations = {
     colorBy: "色分け",
     sizeBy: "サイズ",
     select: "選択...",
-    ready: "システム準備完了"
+    ready: "システム準備完了",
+    bar: "棒グラフ",
+    line: "折れ線グラフ",
+    area: "面グラフ",
+    scatter: "散布図",
+    pie: "円グラフ",
+    radar: "レーダーチャート",
+    donut: "ドーナツグラフ",
+    treemap: "ツリーマップ"
   },
   'ko': {
     title: "DataStata.AI",
@@ -125,7 +157,15 @@ export const translations = {
     colorBy: "색상 그룹",
     sizeBy: "크기 가중치",
     select: "선택...",
-    ready: "시스템 준비됨"
+    ready: "시스템 준비됨",
+    bar: "막대 차트",
+    line: "선 차트",
+    area: "영역 차트",
+    scatter: "산점도",
+    pie: "파이 차트",
+    radar: "레이더 차트",
+    donut: "도넛 차트",
+    treemap: "트리맵"
   }
 };
 

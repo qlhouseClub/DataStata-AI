@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Dataset, getActiveSheet, Language, ChartConfig } from '../types';
-import { FileText, BarChart2, Download, X, Plus, Trash2, ChevronDown } from 'lucide-react';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { Dataset, getActiveSheet, Language, ChartConfig, SeriesConfig, Theme, ColorPalette } from '../types';
+import { FileText, BarChart2, Download, X, Plus, ChevronDown, Filter, MoveDiagonal, Palette as PaletteIcon, Check } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 import { ChartRenderer } from './ChartRenderer';
 import { downloadChartAsJpg } from '../utils/chartUtils';
+import { PRESET_PALETTE, generatePalette } from '../utils/colorUtils';
 
 interface DataGridProps {
   datasets: Dataset[];
@@ -13,6 +15,7 @@ interface DataGridProps {
   onClose: () => void;
   onGenerateChart: (cmd: string) => void;
   language: Language;
+  theme: Theme;
 }
 
 export const DataGrid: React.FC<DataGridProps> = ({ 
@@ -20,7 +23,8 @@ export const DataGrid: React.FC<DataGridProps> = ({
     activeDatasetId, 
     onSetActiveDataset, 
     onSetActiveSheet,
-    language
+    language,
+    theme
 }) => {
   const t = getTranslation(language);
   const activeDataset = datasets.find(d => d.id === activeDatasetId);
@@ -28,94 +32,130 @@ export const DataGrid: React.FC<DataGridProps> = ({
   const data = activeSheetData?.data || [];
   const summaries = activeSheetData?.summaries || [];
   
-  // Virtualization limit for rendering
   const displayData = data.slice(0, 100);
-
-  // Cell Selection State
   const [selectedCell, setSelectedCell] = useState<{rowIndex: number, colName: string} | null>(null);
 
   // Chart Builder State
   const [showChartBuilder, setShowChartBuilder] = useState(false);
   const [chartType, setChartType] = useState('line');
+  
+  // X-Axis State
   const [xVar, setXVar] = useState('');
-  
-  // Multi-Y State
-  const [yVars, setYVars] = useState<string[]>([]);
+  const [xSubsetVal, setXSubsetVal] = useState('');
 
-  const [colorVar, setColorVar] = useState(''); 
-  const [sizeVar, setSizeVar] = useState('');
-  
-  // Local Inline Chart State
+  // Multi-Y State
+  const [tempSeries, setTempSeries] = useState<SeriesConfig[]>([]);
+
+  // Inline Chart State
   const [inlineChart, setInlineChart] = useState<ChartConfig | null>(null);
 
-  const handleAddYVar = (val: string) => {
-    if (val && !yVars.includes(val)) {
-        setYVars([...yVars, val]);
-    }
+  // Pane Resize State
+  const [paneSize, setPaneSize] = useState({ width: 500, height: 450 });
+  const [isResizing, setIsResizing] = useState<'left' | 'bottom' | 'corner' | null>(null);
+  const resizeRef = useRef<{ startX: number, startY: number, startW: number, startH: number } | null>(null);
+
+  // --- Palette State ---
+  const [customPalettes, setCustomPalettes] = useState<ColorPalette[]>([]);
+  // Open Picker State: ID of the series currently being edited (index)
+  const [openColorPickerIndex, setOpenColorPickerIndex] = useState<number | null>(null);
+  
+  // Palette Creation State
+  const [newPaletteBase, setNewPaletteBase] = useState('#3b82f6');
+  const [newPaletteCount, setNewPaletteCount] = useState(4);
+  const [isCreatingPalette, setIsCreatingPalette] = useState(false);
+
+  const handleCreatePalette = () => {
+      const colors = generatePalette(newPaletteBase, newPaletteCount);
+      const newPalette: ColorPalette = {
+          id: Date.now().toString(),
+          name: `Custom (${colors.length})`,
+          colors
+      };
+      setCustomPalettes([...customPalettes, newPalette]);
+      setIsCreatingPalette(false);
   };
 
-  const handleRemoveYVar = (val: string) => {
-      setYVars(yVars.filter(v => v !== val));
+  const handleAddSeries = (varName: string) => {
+      const color = PRESET_PALETTE[tempSeries.length % PRESET_PALETTE.length];
+      setTempSeries([...tempSeries, { dataKey: varName, label: varName, color }]);
+  };
+
+  const handleRemoveSeries = (index: number) => {
+      const newS = [...tempSeries];
+      newS.splice(index, 1);
+      setTempSeries(newS);
+  };
+
+  const handleUpdateSeries = (index: number, updates: Partial<SeriesConfig>) => {
+      const newS = [...tempSeries];
+      newS[index] = { ...newS[index], ...updates };
+      
+      if (updates.filter) {
+          const s = newS[index];
+          newS[index].label = `${s.dataKey} (${updates.filter.value})`;
+      } else if (updates.filter === undefined && 'filter' in updates) {
+          newS[index].label = newS[index].dataKey;
+      }
+      setTempSeries(newS);
   };
 
   const handleCreateChart = () => {
-      if (!xVar || yVars.length === 0) return;
-      
+      if (!xVar || tempSeries.length === 0) return;
       const config: ChartConfig = {
           type: chartType as any,
-          title: `${yVars.join(', ')} by ${xVar}`,
+          title: `${tempSeries.map(s => s.label).join(', ')} by ${xVar}`,
           xAxisKey: xVar,
-          yAxisKey: yVars,
-          groupBy: colorVar,
-          sizeBy: sizeVar,
+          xFilter: (xVar && xSubsetVal) ? { column: xVar, value: xSubsetVal } : undefined,
+          series: tempSeries,
           description: `Generated from ${activeDataset?.name}`
       };
-      
       setInlineChart(config);
       setShowChartBuilder(false);
   };
 
-  const handleAddSeriesToInlineChart = (varName: string) => {
-    if (!inlineChart) return;
-    const currentY = Array.isArray(inlineChart.yAxisKey) 
-        ? inlineChart.yAxisKey 
-        : [inlineChart.yAxisKey];
-    
-    if (!currentY.includes(varName)) {
-        setInlineChart({
-            ...inlineChart,
-            yAxisKey: [...currentY, varName],
-            title: `${[...currentY, varName].join(', ')} by ${inlineChart.xAxisKey}`
-        });
-    }
+  const getDistinctValues = (colName: string) => {
+      if (!activeSheetData) return [];
+      const distinct = new Set(
+          activeSheetData.data
+            .map(r => r[colName])
+            .filter(v => v !== null && v !== undefined && v !== '')
+            .map(v => String(v))
+      );
+      return Array.from(distinct).sort().slice(0, 100);
   };
 
-  const handleRemoveSeriesFromInlineChart = (varName: string) => {
-    if (!inlineChart) return;
-    const currentY = Array.isArray(inlineChart.yAxisKey) 
-        ? inlineChart.yAxisKey 
-        : [inlineChart.yAxisKey];
-    
-    const newY = currentY.filter(y => y !== varName);
-    
-    // If no Y axis left, maybe close chart? For now just empty.
-    setInlineChart({
-        ...inlineChart,
-        yAxisKey: newY
-    });
-  };
-
+  const categoricalCols = summaries.filter(s => s.type !== 'number'); 
+  const usedInY = new Set(tempSeries.map(s => s.dataKey));
+  const xOptions = summaries.filter(s => !usedInY.has(s.name));
+  const yOptions = summaries.filter(s => s.type === 'number' && s.name !== xVar);
   const INLINE_CHART_ID = "inline-chart-pane";
 
+  // Resize Handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !resizeRef.current) return;
+      const { startX, startY, startW, startH } = resizeRef.current;
+      if (isResizing === 'left' || isResizing === 'corner') {
+          setPaneSize(prev => ({ ...prev, width: Math.max(300, startW + (startX - e.clientX)) }));
+      }
+      if (isResizing === 'bottom' || isResizing === 'corner') {
+          setPaneSize(prev => ({ ...prev, height: Math.max(300, startH + (e.clientY - startY)) }));
+      }
+    };
+    const handleMouseUp = () => { setIsResizing(null); resizeRef.current = null; };
+    if (isResizing) { document.addEventListener('mousemove', handleMouseMove); document.addEventListener('mouseup', handleMouseUp); }
+    return () => { document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); };
+  }, [isResizing]);
+  const startResize = (type: any, e: any) => { e.preventDefault(); setIsResizing(type); resizeRef.current = { startX: e.clientX, startY: e.clientY, startW: paneSize.width, startH: paneSize.height }; };
+
   return (
-    <div className="flex flex-col h-full bg-white relative">
-      {/* 1. File Tabs (Pinned Top) */}
-      <div className="flex items-center bg-gray-100 border-b border-gray-200 overflow-x-auto no-scrollbar shrink-0 z-20">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-800 transition-colors duration-200 relative">
+      <div className="flex items-center bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-scrollbar shrink-0 z-20">
         {datasets.map(d => (
             <button
                 key={d.id}
                 onClick={() => onSetActiveDataset(d.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap border-r border-gray-200 transition-colors ${d.id === activeDatasetId ? 'bg-white text-blue-600 border-t-2 border-t-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 transition-colors ${d.id === activeDatasetId ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-t-2 border-t-blue-600 dark:border-t-blue-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'}`}
             >
                 <FileText className="w-3.5 h-3.5" />
                 {d.name}
@@ -123,139 +163,249 @@ export const DataGrid: React.FC<DataGridProps> = ({
         ))}
       </div>
 
-      {/* 2. Sheet & Toolbar (Pinned Top) */}
       {activeDataset && (
-          <div className="flex items-center justify-between p-2 border-b border-gray-200 bg-white shrink-0 z-20 shadow-sm relative">
+          <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 z-20 shadow-sm relative">
               <div className="flex items-center gap-1 overflow-x-auto">
                  <span className="text-xs font-bold text-gray-400 uppercase mr-2 tracking-wider">Sheets:</span>
                  {Object.keys(activeDataset.sheets).map(sheetName => (
                      <button
                         key={sheetName}
                         onClick={() => onSetActiveSheet(activeDataset.id, sheetName)}
-                        className={`px-3 py-1 text-xs rounded transition-colors ${activeDataset.activeSheetName === sheetName ? 'bg-blue-100 text-blue-800 font-medium' : 'bg-transparent text-gray-600 hover:bg-gray-100'}`}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${activeDataset.activeSheetName === sheetName ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 font-medium' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                      >
                         {sheetName}
                      </button>
                  ))}
               </div>
               <div className="flex items-center gap-4 relative">
-                  <span className="text-xs text-gray-400">
-                      Total: <span className="font-mono text-gray-600">{data.length}</span> rows
-                  </span>
-                  
-                  {/* Chart Toggle Button */}
+                  <span className="text-xs text-gray-400">Total: <span className="font-mono text-gray-600 dark:text-gray-300">{data.length}</span> rows</span>
                   <button 
                     onClick={() => {
                         setShowChartBuilder(!showChartBuilder);
+                        if (!showChartBuilder && tempSeries.length === 0 && inlineChart) {
+                            setTempSeries(inlineChart.series);
+                            setXVar(inlineChart.xAxisKey);
+                            setChartType(inlineChart.type);
+                            if (inlineChart.xFilter) {
+                                setXSubsetVal(String(inlineChart.xFilter.value));
+                            }
+                        }
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border transition-colors ${showChartBuilder || inlineChart ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border transition-colors ${showChartBuilder || inlineChart ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
                   >
                       <BarChart2 className="w-4 h-4" />
                       {t.visualize}
                   </button>
 
-                  {/* Chart Builder Popover */}
                   {showChartBuilder && (
-                      <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 shadow-2xl rounded-lg z-50 p-5 animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5">
-                          <div className="flex items-center justify-between mb-4">
-                             <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                                <BarChart2 className="w-4 h-4 text-indigo-600"/>
+                      <div className="absolute right-0 top-full mt-2 w-[450px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-lg z-50 p-5 animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5 flex flex-col max-h-[85vh]">
+                          <div className="flex items-center justify-between mb-4 shrink-0">
+                             <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                <BarChart2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400"/>
                                 {t.createChart}
                              </h4>
-                             <button onClick={() => setShowChartBuilder(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button>
+                             <button onClick={() => setShowChartBuilder(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X className="w-4 h-4"/></button>
                           </div>
                           
-                          <div className="space-y-4">
-                              {/* Chart Type */}
+                          <div className="space-y-5 flex-1 overflow-y-auto pr-1">
                               <div>
-                                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">{t.type}</label>
+                                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">{t.type}</label>
                                   <div className="relative">
-                                    <select 
-                                        className="w-full text-sm bg-gray-50 border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none appearance-none"
-                                        value={chartType}
-                                        onChange={(e) => setChartType(e.target.value)}
-                                    >
-                                        <option value="line">Line Chart</option>
-                                        <option value="bar">Bar Chart</option>
-                                        <option value="area">Area Chart</option>
-                                        <option value="scatter">Scatter Plot</option>
+                                    <select className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md p-2 outline-none appearance-none" value={chartType} onChange={(e) => setChartType(e.target.value)}>
+                                        <option value="line">{t.line}</option>
+                                        <option value="bar">{t.bar}</option>
+                                        <option value="area">{t.area}</option>
+                                        <option value="scatter">{t.scatter}</option>
+                                        <option value="pie">{t.pie}</option>
+                                        <option value="donut">{t.donut}</option>
+                                        <option value="radar">{t.radar}</option>
+                                        <option value="treemap">{t.treemap}</option>
                                     </select>
                                     <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none"/>
                                   </div>
                               </div>
                               
-                              {/* X Axis */}
-                              <div>
-                                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">{t.xAxis}</label>
-                                  <div className="relative">
-                                    <select 
-                                        className="w-full text-sm bg-gray-50 border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none appearance-none"
-                                        value={xVar}
-                                        onChange={(e) => setXVar(e.target.value)}
-                                    >
+                              <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">{t.xAxis} (Main Item)</label>
+                                  <div className="relative mb-3">
+                                    <select className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md p-2 outline-none appearance-none focus:border-blue-400 transition-colors" value={xVar} onChange={(e) => { setXVar(e.target.value); setXSubsetVal(''); }}>
                                         <option value="">{t.select}</option>
-                                        {summaries.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                                        {xOptions.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                                     </select>
                                     <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none"/>
                                   </div>
+
+                                  {xVar && (
+                                      <div className="animate-in fade-in">
+                                          <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Subset Item (Value)</label>
+                                          <div className="relative">
+                                              <select className="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded p-1.5 outline-none appearance-none focus:border-blue-400 transition-colors" value={xSubsetVal} onChange={(e) => setXSubsetVal(e.target.value)}>
+                                                  <option value="">All Data (Total)</option>
+                                                  {getDistinctValues(xVar).map(val => (
+                                                      <option key={val} value={val}>{val}</option>
+                                                  ))}
+                                              </select>
+                                              <Filter className="absolute right-2 top-2 w-3 h-3 text-gray-400 pointer-events-none"/>
+                                          </div>
+                                      </div>
+                                  )}
                               </div>
 
-                              {/* Multi-Y Selection */}
-                              <div>
-                                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">{t.yAxis} <span className="font-normal text-gray-400">(Multi-Select)</span></label>
+                              <div className="bg-indigo-50/50 dark:bg-indigo-900/10 p-3 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
+                                  <label className="block text-xs font-bold text-indigo-800 dark:text-indigo-300 mb-2 uppercase tracking-wide">{t.yAxis} (Main Item)</label>
                                   
-                                  <div className="relative mb-2">
-                                      <select 
-                                            className="w-full text-sm bg-white border border-gray-300 text-gray-700 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer hover:border-gray-400 transition-colors"
-                                            value=""
-                                            onChange={(e) => {
-                                                if(e.target.value) handleAddYVar(e.target.value);
-                                            }}
-                                        >
-                                            <option value="">+ Add Variable...</option>
-                                            {summaries.filter(s => s.type === 'number').map(s => (
-                                                <option key={s.name} value={s.name} disabled={yVars.includes(s.name)}>{s.name}</option>
-                                            ))}
+                                  <div className="relative mb-3">
+                                      <select className="w-full text-sm bg-white dark:bg-gray-700 border border-indigo-200 dark:border-indigo-800 text-gray-700 dark:text-gray-200 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer" value="" onChange={(e) => { if(e.target.value) handleAddSeries(e.target.value); }}>
+                                            <option value="">+ Add Y-Series...</option>
+                                            {yOptions.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                                       </select>
                                       <Plus className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none"/>
                                   </div>
 
-                                  {/* Selected Y Vars Chips */}
-                                  <div className="flex flex-wrap gap-2 min-h-[28px]">
-                                      {yVars.length === 0 && <span className="text-xs text-gray-400 italic">No variables selected</span>}
-                                      {yVars.map((v, i) => (
-                                          <div key={i} className="flex items-center gap-1 pl-2 pr-1 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-medium shadow-sm animate-in fade-in zoom-in duration-200">
-                                              {v}
-                                              <button onClick={() => handleRemoveYVar(v)} className="p-0.5 hover:bg-indigo-200 rounded text-indigo-500 hover:text-indigo-800 transition-colors"><X className="w-3 h-3"/></button>
+                                  <div className="space-y-3 relative">
+                                      {tempSeries.map((s, i) => (
+                                          <div key={i} className="p-3 rounded bg-white dark:bg-gray-750 border border-indigo-100 dark:border-indigo-900/30 shadow-sm animate-in fade-in">
+                                              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                                                  <div className="flex items-center gap-2">
+                                                      <span className="font-semibold text-indigo-700 dark:text-indigo-300 text-sm">{s.dataKey}</span>
+                                                      
+                                                      {/* Color Picker Trigger */}
+                                                      <div className="relative">
+                                                          <button 
+                                                              onClick={() => setOpenColorPickerIndex(openColorPickerIndex === i ? null : i)}
+                                                              className="w-5 h-5 rounded hover:scale-110 transition-transform shadow-sm ring-1 ring-gray-200 dark:ring-gray-600"
+                                                              style={{ backgroundColor: s.color }}
+                                                              title="Change Color"
+                                                          />
+                                                          
+                                                          {/* Color Picker Popover */}
+                                                          {openColorPickerIndex === i && (
+                                                              <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-lg p-3 w-64 animate-in fade-in zoom-in-95">
+                                                                  <div className="flex justify-between items-center mb-2">
+                                                                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Preset Colors</span>
+                                                                      <button onClick={() => setOpenColorPickerIndex(null)}><X className="w-3 h-3 text-gray-400"/></button>
+                                                                  </div>
+                                                                  <div className="grid grid-cols-6 gap-2 mb-4">
+                                                                      {PRESET_PALETTE.map(color => (
+                                                                          <button 
+                                                                            key={color} 
+                                                                            className={`w-6 h-6 rounded-md hover:scale-110 transition-transform ${s.color === color ? 'ring-2 ring-blue-500' : ''}`}
+                                                                            style={{ backgroundColor: color }}
+                                                                            onClick={() => {
+                                                                                handleUpdateSeries(i, { color });
+                                                                                setOpenColorPickerIndex(null);
+                                                                            }}
+                                                                          />
+                                                                      ))}
+                                                                  </div>
+
+                                                                  {/* Custom Palettes */}
+                                                                  {customPalettes.length > 0 && (
+                                                                      <>
+                                                                          <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">My Libraries</div>
+                                                                          {customPalettes.map(pal => (
+                                                                              <div key={pal.id} className="mb-2">
+                                                                                  <div className="text-[10px] text-gray-400 mb-1">{pal.name}</div>
+                                                                                  <div className="flex flex-wrap gap-1">
+                                                                                      {pal.colors.map(color => (
+                                                                                          <button 
+                                                                                            key={color} 
+                                                                                            className="w-5 h-5 rounded-md hover:scale-110"
+                                                                                            style={{ backgroundColor: color }}
+                                                                                            onClick={() => {
+                                                                                                handleUpdateSeries(i, { color });
+                                                                                                setOpenColorPickerIndex(null);
+                                                                                            }}
+                                                                                          />
+                                                                                      ))}
+                                                                                  </div>
+                                                                              </div>
+                                                                          ))}
+                                                                      </>
+                                                                  )}
+
+                                                                  {/* Create New Palette */}
+                                                                  <div className="border-t border-gray-100 dark:border-gray-700 pt-2 mt-2">
+                                                                      {!isCreatingPalette ? (
+                                                                          <button 
+                                                                            onClick={() => setIsCreatingPalette(true)}
+                                                                            className="w-full flex items-center justify-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                                                                          >
+                                                                              <Plus className="w-3 h-3"/> New Library
+                                                                          </button>
+                                                                      ) : (
+                                                                          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                                                              <div className="flex items-center gap-2 mb-2">
+                                                                                  <input type="color" value={newPaletteBase} onChange={e => setNewPaletteBase(e.target.value)} className="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer"/>
+                                                                                  <select 
+                                                                                    value={newPaletteCount} 
+                                                                                    onChange={e => setNewPaletteCount(Number(e.target.value))}
+                                                                                    className="text-xs border rounded p-1 flex-1 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                                                                                  >
+                                                                                      {[4, 8, 12, 16, 20, 24].map(n => <option key={n} value={n}>{n} Colors</option>)}
+                                                                                  </select>
+                                                                              </div>
+                                                                              <div className="flex gap-2">
+                                                                                  <button onClick={handleCreatePalette} className="flex-1 text-xs bg-blue-600 text-white rounded py-1">Save</button>
+                                                                                  <button onClick={() => setIsCreatingPalette(false)} className="px-2 text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">Cancel</button>
+                                                                              </div>
+                                                                          </div>
+                                                                      )}
+                                                                  </div>
+                                                              </div>
+                                                          )}
+                                                      </div>
+                                                  </div>
+                                                  <button onClick={() => handleRemoveSeries(i)} className="text-gray-400 hover:text-red-500"><X className="w-3.5 h-3.5"/></button>
+                                              </div>
+                                              
+                                              <div>
+                                                  <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Identifier Suffix (Intersection)</label>
+                                                  <div className="flex gap-2">
+                                                    <select 
+                                                        className="w-1/2 text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 outline-none focus:border-indigo-300 transition-colors"
+                                                        value={s.filter?.column || ''}
+                                                        onChange={(e) => {
+                                                            const col = e.target.value;
+                                                            if (!col) {
+                                                                const { filter, ...rest } = s;
+                                                                handleUpdateSeries(i, rest as any);
+                                                            } else {
+                                                                handleUpdateSeries(i, { filter: { column: col, value: '' } });
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="">Select ID Item...</option>
+                                                        {categoricalCols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                                    </select>
+                                                    
+                                                    {s.filter?.column ? (
+                                                        <select 
+                                                            className="w-1/2 text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 outline-none focus:border-indigo-300 transition-colors"
+                                                            value={s.filter.value}
+                                                            onChange={(e) => handleUpdateSeries(i, { filter: { column: s.filter!.column, value: e.target.value } })}
+                                                        >
+                                                            <option value="">Intersection Choice...</option>
+                                                            {getDistinctValues(s.filter.column).map(val => (
+                                                                <option key={val} value={val}>{val}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <div className="w-1/2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex items-center justify-center text-[10px] text-gray-300 italic">
+                                                            No ID Item Selected
+                                                        </div>
+                                                    )}
+                                                  </div>
+                                              </div>
                                           </div>
                                       ))}
                                   </div>
                               </div>
 
-                              {/* Colors/Size (Optional) */}
-                              {chartType === 'scatter' && (
-                                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                                      <div>
-                                          <label className="block text-xs font-medium text-gray-500 mb-1">{t.colorBy}</label>
-                                          <select className="w-full text-xs border rounded p-1.5 bg-gray-50" value={colorVar} onChange={e => setColorVar(e.target.value)}>
-                                              <option value="">None</option>
-                                              {summaries.filter(s => s.type === 'string').map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                                          </select>
-                                      </div>
-                                      <div>
-                                          <label className="block text-xs font-medium text-gray-500 mb-1">{t.sizeBy}</label>
-                                          <select className="w-full text-xs border rounded p-1.5 bg-gray-50" value={sizeVar} onChange={e => setSizeVar(e.target.value)}>
-                                              <option value="">None</option>
-                                              {summaries.filter(s => s.type === 'number').map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                                          </select>
-                                      </div>
-                                  </div>
-                              )}
-
                               <button 
                                 onClick={handleCreateChart}
-                                disabled={!xVar || yVars.length === 0}
-                                className="w-full py-2.5 mt-2 bg-indigo-600 text-white text-sm rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                                disabled={!xVar || tempSeries.length === 0}
+                                className="w-full py-2.5 bg-indigo-600 text-white text-sm rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 shadow-md transition-all active:scale-[0.98]"
                               >
                                   {t.generate}
                               </button>
@@ -267,42 +417,35 @@ export const DataGrid: React.FC<DataGridProps> = ({
       )}
 
       <div className="flex-1 relative overflow-hidden flex">
-        {/* Main Grid */}
-        <div className="flex-1 overflow-auto bg-white">
-            {data.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-400 text-sm">No data</div>
-            ) : (
-                <table className="min-w-full divide-y divide-gray-200 text-sm border-separate border-spacing-0">
-                <thead className="bg-gray-50 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <div className="flex-1 overflow-auto bg-white dark:bg-gray-800">
+            {data.length === 0 ? <div className="flex items-center justify-center h-full text-gray-400 text-sm">No data</div> : (
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm border-separate border-spacing-0">
+                <thead className="bg-gray-50 dark:bg-gray-750 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                     <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 bg-gray-50 w-12 text-center select-none">
-                        #
-                    </th>
-                    {summaries.map((col) => (
-                        <th key={col.name} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 border-l border-gray-100 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors whitespace-nowrap">
-                        {col.name}
-                        </th>
-                    ))}
+                        <th className="px-4 py-2 bg-gray-50 dark:bg-gray-750 text-gray-500 dark:text-gray-400 w-12 text-center border-b border-gray-200 dark:border-gray-700">#</th>
+                        {summaries.map((col) => (
+                            <th key={col.name} className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 border-l border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 whitespace-nowrap">
+                                {col.name}
+                            </th>
+                        ))}
                     </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {displayData.map((row, idx) => {
                         const isRowSelected = selectedCell?.rowIndex === idx;
                         return (
-                        <tr key={idx} className={`transition-colors ${isRowSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                            <td className="px-4 py-2 whitespace-nowrap text-gray-400 font-mono text-xs text-center border-r border-gray-100 bg-gray-50 select-none sticky left-0 z-1">
-                                {idx + 1}
-                            </td>
+                        <tr key={idx} className={isRowSelected ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-750'}>
+                            <td className="px-4 py-2 text-gray-400 font-mono text-xs text-center border-r border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 sticky left-0">{idx + 1}</td>
                             {summaries.map((col) => {
                                 const isCellSelected = isRowSelected && selectedCell?.colName === col.name;
                                 return (
-                                <td 
-                                    key={col.name} 
-                                    onClick={() => setSelectedCell({ rowIndex: idx, colName: col.name })}
-                                    className={`px-4 py-2 whitespace-nowrap text-gray-700 border-r border-gray-100 cursor-cell ${isCellSelected ? 'bg-blue-200 ring-1 ring-blue-400 inset-0' : ''}`}
-                                >
-                                    {row[col.name] !== null && row[col.name] !== undefined ? String(row[col.name]) : <span className="text-gray-300">.</span>}
-                                </td>
+                                    <td 
+                                        key={col.name} 
+                                        onClick={() => setSelectedCell({ rowIndex: idx, colName: col.name })} 
+                                        className={`px-4 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 border-r border-gray-100 dark:border-gray-700 cursor-cell ${isCellSelected ? 'bg-blue-200 dark:bg-blue-800 ring-1 ring-blue-400' : ''}`}
+                                    >
+                                        {row[col.name] ?? <span className="text-gray-300 dark:text-gray-600">.</span>}
+                                    </td>
                                 )
                             })}
                         </tr>
@@ -313,71 +456,24 @@ export const DataGrid: React.FC<DataGridProps> = ({
             )}
         </div>
 
-        {/* Inline Chart Pane - Floating Panel next to toolbar/content */}
         {inlineChart && (
-            <div className="absolute top-2 right-4 w-[500px] h-[450px] bg-white rounded-lg shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-gray-200 z-30 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300 ring-1 ring-black/5">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/50 backdrop-blur shrink-0">
-                    <span className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                        <BarChart2 className="w-3.5 h-3.5" />
-                        Analysis Preview
-                    </span>
-                    <div className="flex items-center gap-1">
-                        <button 
-                            onClick={() => downloadChartAsJpg(INLINE_CHART_ID, inlineChart.title.replace(/\s+/g, '_'))}
-                            title="Export JPG"
-                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        >
-                            <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                            onClick={() => setInlineChart(null)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                </div>
-                
-                <div className="flex-1 p-4 bg-white min-h-0" id={INLINE_CHART_ID}>
-                    <ChartRenderer config={inlineChart} data={data} />
-                </div>
+            <div 
+                className="absolute top-2 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-gray-200 dark:border-gray-700 z-30 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300 ring-1 ring-black/5"
+                style={{ width: paneSize.width, height: paneSize.height }}
+            >
+                <div className="absolute top-0 bottom-0 left-0 w-2 cursor-ew-resize hover:bg-blue-200/50 z-40" onMouseDown={(e) => startResize('left', e)}/>
+                <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-blue-200/50 z-40" onMouseDown={(e) => startResize('bottom', e)}/>
+                <div className="absolute bottom-0 left-0 w-4 h-4 cursor-nesw-resize hover:bg-blue-400 z-50 flex items-center justify-center rounded-tr bg-gray-100/50 dark:bg-gray-700" onMouseDown={(e) => startResize('corner', e)}><MoveDiagonal className="w-3 h-3 text-gray-400" /></div>
 
-                {/* Footer for dynamic Y-Axis modification */}
-                <div className="p-3 border-t border-gray-100 bg-gray-50 shrink-0">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-500">Y-Axis:</span>
-                            {(Array.isArray(inlineChart.yAxisKey) ? inlineChart.yAxisKey : [inlineChart.yAxisKey]).map(yVar => (
-                                <span key={yVar} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-gray-200 text-xs text-gray-700 shadow-sm animate-in fade-in">
-                                    {yVar}
-                                    <button 
-                                        onClick={() => handleRemoveSeriesFromInlineChart(yVar)}
-                                        className="text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 p-0.5"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </span>
-                            ))}
-                            
-                            <div className="relative group ml-1">
-                                <button className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-xs hover:bg-blue-100 font-medium transition-colors">
-                                    <Plus className="w-3 h-3"/> Add
-                                </button>
-                                <select 
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    value=""
-                                    onChange={(e) => {
-                                        if (e.target.value) handleAddSeriesToInlineChart(e.target.value);
-                                    }}
-                                >
-                                    <option value="">Select variable...</option>
-                                    {summaries.filter(s => s.type === 'number').map(s => (
-                                        <option key={s.name} value={s.name}>{s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750/50 backdrop-blur shrink-0 handle-drag">
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2 pl-2"><BarChart2 className="w-3.5 h-3.5" />Analysis Preview</span>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => downloadChartAsJpg(INLINE_CHART_ID, inlineChart.title.replace(/\s+/g, '_'))} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-700 rounded"><Download className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setInlineChart(null)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><X className="w-3.5 h-3.5" /></button>
                     </div>
+                </div>
+                <div className="flex-1 p-4 bg-white dark:bg-gray-800 min-h-0 relative" id={INLINE_CHART_ID}>
+                    <ChartRenderer config={inlineChart} data={data} theme={theme} />
                 </div>
             </div>
         )}

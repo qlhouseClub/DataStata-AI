@@ -23,13 +23,27 @@ export enum LogType {
   SYSTEM = 'SYSTEM'
 }
 
+export interface SeriesConfig {
+  dataKey: string;
+  label?: string;
+  color?: string;
+  filter?: {
+    column: string;
+    value: string | number;
+  };
+}
+
 export interface ChartConfig {
-  type: 'bar' | 'line' | 'scatter' | 'area' | 'pie';
+  type: 'bar' | 'line' | 'scatter' | 'area' | 'pie' | 'radar' | 'donut' | 'treemap';
   title: string;
   xAxisKey: string;
-  yAxisKey: string | string[]; 
+  // Global filter applied to the X-axis domain (and thus the whole chart)
+  xFilter?: {
+    column: string;
+    value: string | number;
+  };
+  series: SeriesConfig[]; 
   description?: string;
-  // Multi-dimensional additions
   groupBy?: string; // Color by
   sizeBy?: string;  // Size by (for scatter)
 }
@@ -55,6 +69,13 @@ export interface Dataset {
 }
 
 export type Language = 'en' | 'zh-CN' | 'zh-TW' | 'ja' | 'ko';
+export type Theme = 'light' | 'dark';
+
+export interface ColorPalette {
+  id: string;
+  name: string;
+  colors: string[];
+}
 
 // Helper to get active sheet data easily
 export const getActiveSheet = (dataset: Dataset): SheetData => {
