@@ -5,12 +5,12 @@ export const translations = {
   'en': {
     title: "DataStata.AI",
     loadData: "Load Data",
-    viewData: "View Data Grid",
-    hideData: "Hide Data Grid",
+    viewData: "View Grid",
+    hideData: "Hide Grid",
     variables: "Variables",
     frames: "Frames",
-    console: "Command Console",
-    chartWindow: "Chart Window",
+    console: "Console",
+    chartWindow: "Chart",
     exportJpg: "Export JPG",
     close: "Close",
     visualize: "Visualize",
@@ -18,70 +18,74 @@ export const translations = {
     processing: "Processing...",
     commandPlaceholder: "Enter command (e.g., 'summarize price')",
     quickActions: "Quick Actions",
-    createChart: "Create Chart",
+    createChart: "Chart Builder",
     type: "Type",
     xAxis: "X Axis",
     yAxis: "Y Axis",
-    colorBy: "Color By (Group)",
-    sizeBy: "Size By (Weight)",
+    colorBy: "Color By",
+    sizeBy: "Size By",
     select: "Select...",
-    ready: "System Ready",
-    bar: "Bar Chart",
-    line: "Line Chart",
-    area: "Area Chart",
-    scatter: "Scatter Plot",
-    pie: "Pie Chart",
-    radar: "Radar Chart",
-    donut: "Donut Chart",
+    ready: "Ready",
+    bar: "Bar",
+    line: "Line",
+    area: "Area",
+    scatter: "Scatter",
+    pie: "Pie",
+    radar: "Radar",
+    donut: "Donut",
     treemap: "Treemap",
-    help: "Help & Manual",
+    help: "Help",
     helpTopics: {
         intro: {
-            title: "Introduction",
-            content: "Welcome to DataStata.AI. This powerful tool merges the precision of Stata-style statistical commands with the versatility of Generative AI. Whether you are a data scientist, researcher, or student, you can perform complex analyses using either strict syntax or simple natural language.\n\n### Core Philosophy\n• **Precision**: Use standard commands for exact results.\n• **Flexibility**: Use AI to explore data when you don't know the exact syntax.\n• **Visualization**: Instantly generate interactive charts.\n\n[UI_PREVIEW: console_intro]\n\nThe interface is designed to be familiar to Stata users but modernized for the web."
+            title: "Overview",
+            content: "DataStata.AI integrates traditional statistical command processing with an LLM-based analysis engine. It allows users to perform data manipulation locally within the browser while utilizing AI for qualitative interpretation and complex syntax generation.\n\n### Core Architecture\nThe application operates on a hybrid model:\n• **Local Engine**: File parsing, variable generation, filtering, and statistical calculations (mean, median, standard deviation) occur locally using JavaScript. This ensures zero latency for standard operations.\n• **AI Engine**: Statistical summaries (metadata) are sent to the Gemini API to generate insights, explain trends, or create visualization configurations.\n\n[UI_PREVIEW: interface_anatomy]\n\n### System Requirements\n• **Browser**: Chrome, Edge, Safari, or Firefox (Modern versions).\n• **Network**: Active internet connection required for AI features (Chat). Local commands (Summarize, Gen) work offline once loaded."
+        },
+        workflow: {
+            title: "Workflow Simulation",
+            content: "This section illustrates a standard analysis session from start to finish.\n\n[UI_PREVIEW: workflow_timeline]\n\n### Step 1: Data Ingestion\nUsers begin by uploading a dataset. The system parses headers and detects data types automatically.\n> **Frame**: A container for a single dataset. Multiple files create multiple Frames.\n\n### Step 2: Inspection\nBefore analysis, it is standard practice to verify data integrity using the `summarize` or `describe` commands to check for missing values or outliers.\n\n### Step 3: Execution\nUsers can choose between:\n• **Imperative Commands**: Precise control (e.g., `gen log_x = Math.log(x)`).\n• **Natural Language**: Exploratory queries (e.g., \"What drives revenue?\")."
         },
         data: {
-            title: "Data Management",
-            content: "### Loading Data\nYou can load data files via the 'Load Data' button in the left sidebar.\n\n**Supported Formats:**\n• **Excel (.xlsx, .xls)**: Multiple sheets are supported. The app automatically detects headers and formats dates (YYYY-MM-DD).\n• **CSV (.csv)**: Standard comma-separated values.\n\n### Variable Management\nOnce loaded, variables appear in the sidebar. \n• **Click** a variable name to insert it into the command line.\n• **Hover** over a variable to see its type (Number #, String A, Date 📅).\n\n### Frames (Datasets)\nYou can load multiple files simultaneously. Each file is treated as a separate 'Frame'.\n• Switch frames by clicking the name in the sidebar or using the `frame change` command.\n• Use `merge` to combine data from different frames."
+            title: "Data Structures",
+            content: "### Supported Formats\nThe application accepts flat-file databases:\n• **CSV (.csv)**: Comma-Separated Values. First row must contain headers.\n• **Excel (.xlsx)**: Each sheet is loaded as a separate Frame.\n\n### Variable Types\nThe system automatically infers data types upon loading. You can verify types in the Sidebar.\n\n[UI_PREVIEW: variable_types]\n\n### Multi-Dataset Operations (Frames)\nThe application supports working with multiple datasets simultaneously, referred to as **Frames**.\n\n#### Switching Frames\nClick the Frame name in the sidebar to make it active. All commands apply only to the active Frame.\n\n#### Merging Frames\nData from one Frame can be joined to the active Frame using a common identifier (Key Variable).\n• **Command**: `merge 1:1 [key_var] using [filename]`\n• **Requirement**: The key variable must exist in both datasets with the same name."
         },
         commands: {
-            title: "Stata Commands",
-            content: "DataStata.AI supports a subset of the most common Stata commands. These run locally in your browser for maximum speed and privacy.\n\n### 1. Summarize\nCalculates summary statistics (Obs, Mean, Std. Dev., Min, Max).\n**Syntax:** `summarize [varlist]`\n**Example:** `summarize price mpg weight`\n[UI_PREVIEW: command_summarize]\n\n### 2. Describe\nDisplays variable types and storage information.\n**Syntax:** `describe [varlist]`\n**Example:** `d price make`\n\n### 3. List\nDisplays raw data rows.\n**Syntax:** `list [varlist] in [range]`\n**Example:** `list make price in 1/5`\n\n### 4. Generate\nCreates new variables using JavaScript-like expressions.\n**Syntax:** `generate newvar = expression`\n**Example:** `gen price_per_mpg = price / mpg`\n**Note:** You can use math functions like `Math.log(x)`, `Math.abs(x)`, etc.\n\n### 5. Drop\nRemoves variables from the dataset.\n**Syntax:** `drop varlist`\n**Example:** `drop temp_var`"
+            title: "Command Reference",
+            content: "Commands are case-insensitive and executed locally. Below is the strict syntax reference.\n\n### Inspection\n• **summarize [varlist]**: Calculates Obs, Mean, Std. Dev, Min, Max.\n  `su price mpg`\n• **describe**: Lists variable names and storage types.\n  `d`\n• **list [varlist] in [range]**: Displays raw data rows.\n  `list make price in 1/5`\n• **count**: Returns the number of observations (rows).\n\n### Manipulation\n• **generate [newvar] = [expression]**: Creates a new column based on a JavaScript expression.\n  `gen volume = height * width * depth`\n  `gen log_price = Math.log(price)`\n• **drop [varlist]**: Removes columns from memory.\n  `drop temp_var`\n\n### System\n• **clear all**: Removes all datasets from memory.\n• **frame change [name]**: Switches the active dataset."
         },
         ai: {
-            title: "AI Analysis",
-            content: "When strict syntax isn't enough, ask the AI. The AI has access to variable summaries and sample data.\n\n### Exploratory Analysis\nSimply ask questions about your data:\n• \"What is the trend of sales over time?\"\n• \"Is there a correlation between height and weight?\"\n• \"Interpret the distribution of age.\"\n\n### Statistical Simulations\nThe AI can simulate advanced output text for regression or t-tests, formatted like Stata output:\n• \"Run a regression of price on mpg and weight\"\n• \"Perform a t-test for salary by gender\"\n\n[UI_PREVIEW: ai_regression]\n\n**Tip:** The AI cannot run actual regressions on the full dataset (it sees summaries), so these are analytical estimates or illustrative formats."
+            title: "AI & Insights",
+            content: "The AI module interprets natural language to perform tasks that would otherwise require complex syntax.\n\n### Logic Flow\n1. **User Query**: \"Why is profit low?\"\n2. **Context Injection**: The system calculates summaries (not raw rows) of all variables and sends them to the model.\n3. **Reasoning**: The model correlates high-variance variables or identifies outliers in the summaries.\n4. **Response**: The model returns text analysis or a JSON configuration to render a chart.\n\n### Capabilities\n• **Trend Analysis**: Interpreting numerical distribution.\n• **Syntax Translation**: Converting English to Stata commands.\n• **Hypothesis Generation**: Suggesting relationships between variables based on names and types.\n\n> **Note**: For privacy, raw data rows are not sent to the AI unless specifically requested (e.g., \"Analyze the first 5 rows\"). By default, only metadata (Mean/Max/Min) is transmitted."
         },
         viz: {
             title: "Visualization",
-            content: "### Natural Language Plotting\nThe fastest way to see data. Just ask:\n• \"Scatter plot of price vs mpg\"\n• \"Show me a bar chart of car makes\"\n• \"Line chart of date and close_price\"\n\n### Interactive Chart Builder\nFor more control, use the **Visualize** button in the Data Grid.\n1. Select Chart Type (Bar, Line, Scatter, etc.)\n2. Choose X-Axis and Y-Axis variables.\n3. Add multiple series or filters.\n4. Click **Generate**.\n\n### Inline Editing\nOnce a chart is generated, you can modify it directly:\n• Change the X-axis variable via dropdown.\n• Add new Y-axis series.\n• Click color chips to change series colors.\n\n[UI_PREVIEW: chart_example]"
+            content: "Charts are rendered using the Recharts library. Two methods exist for creation.\n\n### Method A: Natural Language\nDescribe the desired chart in the Command Console.\n• \"Scatter plot of A vs B\"\n• \"Line chart of Date and Close\"\n\n### Method B: Chart Builder\nFor precise axis control, use the GUI Builder.\n\n[UI_PREVIEW: builder_guide]\n\n#### Configuration Parameters\n• **X-Axis**: The independent variable (Category, Time).\n• **Y-Axis**: The dependent variable(s) (Values).\n• **Group/Color**: Used for creating multiple series based on a categorical variable.\n• **Filter**: Restrict the data range before plotting."
         }
     }
   },
   'zh-CN': {
     title: "DataStata.AI",
     loadData: "加载数据",
-    viewData: "查看数据网格",
-    hideData: "隐藏数据网格",
+    viewData: "显示网格",
+    hideData: "隐藏网格",
     variables: "变量列表",
     frames: "Frames (数据集)",
-    console: "命令控制台",
-    chartWindow: "图表窗口",
+    console: "控制台",
+    chartWindow: "图表",
     exportJpg: "导出 JPG",
     close: "关闭",
     visualize: "可视化",
     generate: "生成",
     processing: "处理中...",
-    commandPlaceholder: "输入命令 (例如: 'summarize price')",
+    commandPlaceholder: "输入命令 (如: 'summarize price')",
     quickActions: "快捷操作",
-    createChart: "创建图表",
+    createChart: "图表构建器",
     type: "类型",
     xAxis: "X 轴",
     yAxis: "Y 轴",
-    colorBy: "颜色分组",
+    colorBy: "分组着色",
     sizeBy: "大小权重",
-    select: "请选择...",
-    ready: "系统就绪",
+    select: "选择...",
+    ready: "就绪",
     bar: "柱状图",
     line: "折线图",
     area: "面积图",
@@ -89,196 +93,212 @@ export const translations = {
     pie: "饼状图",
     radar: "雷达图",
     donut: "环状图",
-    treemap: "矩阵图 (Treemap)",
-    help: "帮助与手册",
+    treemap: "矩阵图",
+    help: "帮助",
     helpTopics: {
         intro: {
-            title: "产品介绍",
-            content: "欢迎使用 DataStata.AI。本应用结合了 Stata 风格的精确统计命令与生成式 AI 的灵活性。无论您是数据科学家、研究人员还是学生，都可以使用严格的语法或自然语言来分析数据。\n\n### 核心理念\n• **精确性**: 使用标准命令获取确切结果。\n• **灵活性**: 当不确定语法时，使用 AI 探索数据。\n• **可视化**: 即时生成交互式图表。\n\n[UI_PREVIEW: console_intro]\n\n界面设计旨在让 Stata 用户感到熟悉，同时适应现代 Web 体验。"
+            title: "系统概览",
+            content: "DataStata.AI 将传统的统计命令处理与 LLM (大语言模型) 分析引擎相结合。它允许用户在浏览器内本地进行数据清洗和操作，同时利用 AI 进行定性解释和复杂语法的生成。\n\n### 核心架构\n本应用采用混合模式运行：\n• **本地引擎**: 文件解析、变量生成、筛选和统计计算（均值、中位数、标准差）均通过 JavaScript 在本地完成。这确保了标准操作的零延迟。\n• **AI 引擎**: 系统将统计摘要（元数据）发送至 Gemini API，以生成洞察、解释趋势或创建可视化配置。\n\n[UI_PREVIEW: interface_anatomy]\n\n### 系统要求\n• **浏览器**: Chrome, Edge, Safari 或 Firefox (建议使用最新版本)。\n• **网络**: AI 功能（对话）需要有效的互联网连接。本地命令（Summarize, Gen）在加载后可离线使用。"
+        },
+        workflow: {
+            title: "完整工作流模拟",
+            content: "本节演示从开始到结束的标准分析会话。\n\n[UI_PREVIEW: workflow_timeline]\n\n### 步骤 1: 数据摄入\n用户上传数据集。系统会自动解析表头并检测每一列的数据类型。\n> **Frame (帧)**: 单个数据集的容器。上传多个文件将创建多个 Frame。\n\n### 步骤 2: 数据检查\n在分析之前，标准做法是使用 `summarize` 或 `describe` 命令验证数据完整性，检查是否存在缺失值或异常值。\n\n### 步骤 3: 执行分析\n用户可以选择：\n• **指令式命令**: 精确控制 (例如: `gen log_x = Math.log(x)`)\n• **自然语言**: 探索性查询 (例如: “分析收入的主要驱动因素”)"
         },
         data: {
-            title: "数据管理",
-            content: "### 加载数据\n点击左侧侧边栏的“加载数据”按钮即可上传文件。\n\n**支持格式:**\n• **Excel (.xlsx, .xls)**: 支持多工作表。系统会自动识别表头并将日期格式化为 YYYY-MM-DD。\n• **CSV (.csv)**: 标准逗号分隔文件。\n\n### 变量管理\n加载后，变量将出现在侧边栏中。\n• **点击** 变量名可将其插入命令行。\n• **悬停** 在变量上可查看其类型 (数字 #, 字符串 A, 日期 📅)。\n\n### Frames (多数据集)\n您可以同时加载多个文件。每个文件被视为一个独立的 'Frame'。\n• 点击侧边栏中的名称或使用 `frame change` 命令切换。\n• 使用 `merge` 命令合并不同 Frame 的数据。"
+            title: "数据结构",
+            content: "### 支持的格式\n应用程序接受以下平面文件数据库：\n• **CSV (.csv)**: 逗号分隔值。第一行必须包含表头。\n• **Excel (.xlsx)**: 每个 Sheet（工作表）将作为单独的 Frame 加载。\n\n### 变量类型\n系统在加载时自动推断数据类型。您可以在侧边栏中验证类型。\n\n[UI_PREVIEW: variable_types]\n\n### 多数据集操作 (Frames)\n应用程序支持同时处理多个数据集，这些数据集被称为 **Frames**。\n\n#### 切换 Frame\n在侧边栏点击 Frame 名称即可激活它。所有后续命令仅适用于当前激活的 Frame。\n\n#### 合并 Frames\n可以使用通用标识符（键变量）将一个 Frame 的数据连接到当前激活的 Frame。\n• **命令**: `merge 1:1 [键变量] using [文件名]`\n• **要求**: 键变量必须在两个数据集中存在且名称相同。"
         },
         commands: {
-            title: "Stata 命令详解",
-            content: "DataStata.AI 支持最常用的 Stata 命令子集。这些命令在您的浏览器本地运行，速度极快且保护隐私。\n\n### 1. Summarize (描述统计)\n计算汇总统计信息 (观测数, 均值, 标准差, 最小值, 最大值)。\n**语法:** `summarize [变量列表]`\n**示例:** `summarize price mpg weight`\n[UI_PREVIEW: command_summarize]\n\n### 2. Describe (描述结构)\n显示变量类型和存储信息。\n**语法:** `describe [变量列表]`\n**示例:** `d price make`\n\n### 3. List (列出数据)\n显示原始数据行。\n**语法:** `list [变量列表] in [范围]`\n**示例:** `list make price in 1/5`\n\n### 4. Generate (生成变量)\n使用类似 JavaScript 的表达式创建新变量。\n**语法:** `generate 新变量 = 表达式`\n**示例:** `gen price_per_mpg = price / mpg`\n**注意:** 支持 `Math.log(x)`, `Math.abs(x)` 等数学函数。\n\n### 5. Drop (删除变量)\n从数据集中移除变量。\n**语法:** `drop 变量列表`\n**示例:** `drop temp_var`"
+            title: "命令参考",
+            content: "命令不区分大小写，并在本地执行。以下是严格的语法参考。\n\n### 检查与统计\n• **summarize [变量列表]**: 计算观测数、均值、标准差、最小值、最大值。\n  `su price mpg`\n• **describe**: 列出变量名称和存储类型。\n  `d`\n• **list [变量列表] in [范围]**: 显示原始数据行。\n  `list make price in 1/5`\n• **count**: 返回观测值（行）的数量。\n\n### 数据操作\n• **generate [新变量] = [表达式]**: 基于 JavaScript 表达式创建新列。\n  `gen volume = height * width * depth`\n  `gen log_price = Math.log(price)`\n• **drop [变量列表]**: 从内存中删除列。\n  `drop temp_var`\n\n### 系统\n• **clear all**: 从内存中清除所有数据集。\n• **frame change [名称]**: 切换当前激活的数据集。"
         },
         ai: {
-            title: "AI 智能分析",
-            content: "当严格的语法无法满足需求时，请询问 AI。AI 可以访问变量摘要和样本数据。\n\n### 探索性分析\n直接询问有关数据的问题：\n• “销售额随时间变化的趋势是什么？”\n• “身高和体重之间有相关性吗？”\n• “解释年龄的分布情况。”\n\n### 统计模拟\nAI 可以模拟回归或 T 检验的高级输出，格式类似于 Stata 输出：\n• “运行 price 对 mpg 和 weight 的回归分析”\n• “按性别对薪资进行 T 检验”\n\n[UI_PREVIEW: ai_regression]\n\n**提示:** AI 仅看到摘要数据，无法在全量数据上运行真实回归，因此结果是分析性估计或演示性格式。"
+            title: "AI 与洞察",
+            content: "AI 模块解释自然语言，以执行通常需要复杂语法才能完成的任务。\n\n### 逻辑流程\n1. **用户查询**: “为什么利润偏低？”\n2. **上下文注入**: 系统计算所有变量的统计摘要（而非原始行），并将其发送给模型。\n3. **推理**: 模型根据摘要关联高方差变量或识别异常值。\n4. **响应**: 模型返回文本分析结果或用于渲染图表的 JSON 配置。\n\n### 能力\n• **趋势分析**: 解释数值分布。\n• **语法转换**: 将自然语言转换为 Stata 命令。\n• **假设生成**: 根据变量名称和类型建议变量之间的关系。\n\n> **注意**: 为保护隐私，除非特别请求（例如：“分析前5行”），否则不会向 AI 发送原始数据行。默认情况下，仅传输元数据（均值/最大值/最小值）。"
         },
         viz: {
-            title: "数据可视化",
-            content: "### 自然语言绘图\n查看数据的最快方式。只需询问：\n• “price 与 mpg 的散点图”\n• “展示汽车品牌的柱状图”\n• “日期和收盘价的折线图”\n\n### 交互式图表构建器\n如需更多控制，请使用数据网格中的 **可视化** 按钮。\n1. 选择图表类型 (柱状图, 折线图, 散点图等)。\n2. 选择 X 轴和 Y 轴变量。\n3. 添加多个系列或过滤器。\n4. 点击 **生成**。\n\n### 实时编辑\n生成图表后，您可以直接修改它：\n• 通过下拉菜单更改 X 轴变量。\n• 添加新的 Y 轴系列。\n• 点击颜色块更改系列颜色。\n\n[UI_PREVIEW: chart_example]"
+            title: "可视化",
+            content: "图表使用 Recharts 库渲染。创建图表有两种方法。\n\n### 方法 A: 自然语言\n在命令控制台中描述所需的图表。\n• “绘制 A 与 B 的散点图”\n• “日期和收盘价的折线图”\n\n### 方法 B: 图表构建器\n如需精确的轴控制，请使用 GUI 构建器。\n\n[UI_PREVIEW: builder_guide]\n\n#### 配置参数\n• **X 轴**: 自变量（类别、时间）。\n• **Y 轴**: 因变量（数值）。\n• **分组/颜色**: 用于基于分类变量创建多个系列。\n• **筛选**: 在绘图前限制数据范围。"
         }
     }
   },
   'zh-TW': {
     title: "DataStata.AI",
     loadData: "載入資料",
-    viewData: "檢視資料網格",
-    hideData: "隱藏資料網格",
+    viewData: "顯示網格",
+    hideData: "隱藏網格",
     variables: "變數列表",
     frames: "Frames (資料集)",
-    console: "命令控制台",
-    chartWindow: "圖表視窗",
+    console: "控制台",
+    chartWindow: "圖表",
     exportJpg: "匯出 JPG",
     close: "關閉",
     visualize: "視覺化",
     generate: "產生",
     processing: "處理中...",
-    commandPlaceholder: "輸入指令 (例如: 'summarize price')",
+    commandPlaceholder: "輸入指令 (如: 'summarize price')",
     quickActions: "快速操作",
-    createChart: "建立圖表",
+    createChart: "圖表建構器",
     type: "類型",
     xAxis: "X 軸",
     yAxis: "Y 軸",
-    colorBy: "顏色分組",
+    colorBy: "分組著色",
     sizeBy: "大小權重",
-    select: "請選擇...",
-    ready: "系統就緒",
+    select: "選擇...",
+    ready: "就緒",
     bar: "柱狀圖",
     line: "折線圖",
     area: "面積圖",
     scatter: "散點圖",
-    pie: "餅狀圖",
+    pie: "圓餅圖",
     radar: "雷達圖",
     donut: "環狀圖",
     treemap: "矩陣圖",
-    help: "使用說明",
+    help: "說明",
     helpTopics: {
         intro: {
-            title: "產品介紹",
-            content: "歡迎使用 DataStata.AI。本應用結合了 Stata 風格的精確統計指令與生成式 AI 的靈活性。無論您是資料科學家、研究人員還是學生，都可以使用嚴格的語法或自然語言來分析資料。\n\n### 核心理念\n• **精確性**: 使用標準指令獲取確切結果。\n• **靈活性**: 當不確定語法時，使用 AI 探索資料。\n• **視覺化**: 即時產生互動式圖表。\n\n[UI_PREVIEW: console_intro]\n\n介面設計旨在讓 Stata 使用者感到熟悉，同時適應現代 Web 體驗。"
+            title: "系統概覽",
+            content: "DataStata.AI 將傳統的統計指令處理與 LLM (大語言模型) 分析引擎相結合。它允許使用者在瀏覽器內本地進行資料清洗和操作，同時利用 AI 進行定性解釋和複雜語法的生成。\n\n### 核心架構\n本應用程式採用混合模式運行：\n• **本地引擎**: 檔案解析、變數生成、篩選和統計計算（均值、中位數、標準差）均透過 JavaScript 在本地完成。這確保了標準操作的零延遲。\n• **AI 引擎**: 系統將統計摘要（元數據）傳送至 Gemini API，以生成洞察、解釋趨勢或建立視覺化配置。\n\n[UI_PREVIEW: interface_anatomy]\n\n### 系統需求\n• **瀏覽器**: Chrome, Edge, Safari 或 Firefox (建議使用最新版本)。\n• **網路**: AI 功能（對話）需要有效的網際網路連線。本地指令（Summarize, Gen）在載入後可離線使用。"
+        },
+        workflow: {
+            title: "完整工作流程模擬",
+            content: "本節演示從開始到結束的標準分析工作階段。\n\n[UI_PREVIEW: workflow_timeline]\n\n### 步驟 1: 資料攝入\n使用者上傳資料集。系統會自動解析表頭並檢測每一列的資料類型。\n> **Frame (幀)**: 單個資料集的容器。上傳多個檔案將建立多個 Frame。\n\n### 步驟 2: 資料檢查\n在分析之前，標準做法是使用 `summarize` 或 `describe` 指令驗證資料完整性，檢查是否存在缺失值或異常值。\n\n### 步驟 3: 執行分析\n使用者可以選擇：\n• **指令式操作**: 精確控制 (例如: `gen log_x = Math.log(x)`)\n• **自然語言**: 探索性查詢 (例如: “分析收入的主要驅動因素”)"
         },
         data: {
-            title: "資料管理",
-            content: "### 載入資料\n點擊左側側邊欄的「載入資料」按鈕即可上傳檔案。\n\n**支援格式:**\n• **Excel (.xlsx, .xls)**: 支援多工作表。系統會自動識別表頭並將日期格式化為 YYYY-MM-DD。\n• **CSV (.csv)**: 標準逗號分隔檔案。\n\n### 變數管理\n載入後，變數將出現在側邊欄中。\n• **點擊** 變數名稱可將其插入指令列。\n• **懸停** 在變數上可檢視其類型 (數字 #, 字串 A, 日期 📅)。\n\n### Frames (多資料集)\n您可以同時載入多個檔案。每個檔案被視為一個獨立的 'Frame'。\n• 點擊側邊欄中的名稱或使用 `frame change` 指令切換。\n• 使用 `merge` 指令合併不同 Frame 的資料。"
+            title: "資料結構",
+            content: "### 支援的格式\n應用程式接受以下平面檔案資料庫：\n• **CSV (.csv)**: 逗號分隔值。第一行必須包含表頭。\n• **Excel (.xlsx)**: 每個 Sheet（工作表）將作為單獨的 Frame 載入。\n\n### 變數類型\n系統在載入時自動推斷資料類型。您可以在側邊欄中驗證類型。\n\n[UI_PREVIEW: variable_types]\n\n### 多資料集操作 (Frames)\n應用程式支援同時處理多個資料集，這些資料集被稱為 **Frames**。\n\n#### 切換 Frame\n在側邊欄點擊 Frame 名稱即可啟用它。所有後續指令僅適用於目前啟用的 Frame。\n\n#### 合併 Frames\n可以使用通用識別符（鍵變數）將一個 Frame 的資料連接到目前啟用的 Frame。\n• **指令**: `merge 1:1 [鍵變數] using [檔名]`\n• **要求**: 鍵變數必須在兩個資料集中存在且名稱相同。"
         },
         commands: {
-            title: "Stata 指令詳解",
-            content: "DataStata.AI 支援最常用的 Stata 指令子集。這些指令在您的瀏覽器本地執行，速度極快且保護隱私。\n\n### 1. Summarize (敘述統計)\n計算匯總統計資訊 (觀測數, 均值, 標準差, 最小值, 最大值)。\n**語法:** `summarize [變數列表]`\n**範例:** `summarize price mpg weight`\n[UI_PREVIEW: command_summarize]\n\n### 2. Describe (描述結構)\n顯示變數類型和儲存資訊。\n**語法:** `describe [變數列表]`\n**範例:** `d price make`\n\n### 3. List (列出資料)\n顯示原始資料行。\n**語法:** `list [變數列表] in [範圍]`\n**範例:** `list make price in 1/5`\n\n### 4. Generate (產生變數)\n使用類似 JavaScript 的表達式建立新變數。\n**語法:** `generate 新變數 = 表達式`\n**範例:** `gen price_per_mpg = price / mpg`\n**注意:** 支援 `Math.log(x)`, `Math.abs(x)` 等數學函數。\n\n### 5. Drop (刪除變數)\n從資料集中移除變數。\n**語法:** `drop 變數列表`\n**範例:** `drop temp_var`"
+            title: "指令參考",
+            content: "指令不區分大小寫，並在本地執行。以下是嚴格的語法參考。\n\n### 檢查與統計\n• **summarize [變數列表]**: 計算觀測數、均值、標準差、最小值、最大值。\n  `su price mpg`\n• **describe**: 列出變數名稱和儲存類型。\n  `d`\n• **list [變數列表] in [範圍]**: 顯示原始資料行。\n  `list make price in 1/5`\n• **count**: 返回觀測值（行）的數量。\n\n### 資料操作\n• **generate [新變數] = [表達式]**: 基於 JavaScript 表達式建立新列。\n  `gen volume = height * width * depth`\n  `gen log_price = Math.log(price)`\n• **drop [變數列表]**: 從記憶體中刪除列。\n  `drop temp_var`\n\n### 系統\n• **clear all**: 從記憶體中清除所有資料集。\n• **frame change [名稱]**: 切換目前啟用的資料集。"
         },
         ai: {
-            title: "AI 智慧分析",
-            content: "當嚴格的語法無法滿足需求時，請詢問 AI。AI 可以存取變數摘要和樣本資料。\n\n### 探索性分析\n直接詢問有關資料的問題：\n• 「銷售額隨時間變化的趨勢是什麼？」\n• 「身高和體重之間有相關性嗎？」\n• 「解釋年齡的分佈情況。」\n\n### 統計模擬\nAI 可以模擬迴歸或 T 檢定的進階輸出，格式類似於 Stata 輸出：\n• 「執行 price 對 mpg 和 weight 的迴歸分析」\n• 「按性別對薪資進行 T 檢定」\n\n[UI_PREVIEW: ai_regression]\n\n**提示:** AI 僅看到摘要資料，無法在全量資料上執行真實迴歸，因此結果是分析性估計或演示性格式。"
+            title: "AI 與洞察",
+            content: "AI 模組解釋自然語言，以執行通常需要複雜語法才能完成的任務。\n\n### 邏輯流程\n1. **使用者查詢**: “為什麼利潤偏低？”\n2. **上下文注入**: 系統計算所有變數的統計摘要（而非原始行），並將其傳送給模型。\n3. **推理**: 模型根據摘要關聯高變異變數或識別異常值。\n4. **回應**: 模型返回文字分析結果或用於渲染圖表的 JSON 配置。\n\n### 能力\n• **趨勢分析**: 解釋數值分佈。\n• **語法轉換**: 將自然語言轉換為 Stata 指令。\n• **假設生成**: 根據變數名稱和類型建議變數之間的關係。\n\n> **注意**: 為保護隱私，除非特別請求（例如：“分析前5行”），否則不會向 AI 傳送原始資料行。預設情況下，僅傳輸元數據（均值/最大值/最小值）。"
         },
         viz: {
-            title: "資料視覺化",
-            content: "### 自然語言繪圖\n檢視資料的最快方式。只需詢問：\n• 「price 與 mpg 的散點圖」\n• 「展示汽車品牌的柱狀圖」\n• 「日期和收盤價的折線圖」\n\n### 互動式圖表建構器\n如需更多控制，請使用資料網格中的 **視覺化** 按鈕。\n1. 選擇圖表類型 (柱狀圖, 折線圖, 散點圖等)。\n2. 選擇 X 軸和 Y 軸變數。\n3. 加入多個系列或過濾器。\n4. 點擊 **產生**。\n\n### 即時編輯\n產生圖表後，您可以直接修改它：\n• 透過下拉選單更改 X 軸變數。\n• 加入新的 Y 軸系列。\n• 點擊顏色塊更改系列顏色。\n\n[UI_PREVIEW: chart_example]"
+            title: "視覺化",
+            content: "圖表使用 Recharts 庫渲染。建立圖表有兩種方法。\n\n### 方法 A: 自然語言\n在命令控制台中描述所需的圖表。\n• “繪製 A 與 B 的散點圖”\n• “日期和收盤價的折線圖”\n\n### 方法 B: 圖表建構器\n如需精確的軸控制，請使用 GUI 建構器。\n\n[UI_PREVIEW: builder_guide]\n\n#### 配置參數\n• **X 軸**: 自變數（類別、時間）。\n• **Y 軸**: 因變數（數值）。\n• **分組/顏色**: 用於基於分類變數建立多個系列。\n• **篩選**: 在繪圖前限制資料範圍。"
         }
     }
   },
   'ja': {
     title: "DataStata.AI",
-    loadData: "データを読み込む",
-    viewData: "データグリッドを表示",
-    hideData: "データグリッドを隠す",
-    variables: "変数リスト",
-    frames: "Frames (データセット)",
-    console: "コマンドコンソール",
-    chartWindow: "チャートウィンドウ",
-    exportJpg: "JPGをエクスポート",
+    loadData: "データ読込",
+    viewData: "グリッド表示",
+    hideData: "グリッド非表示",
+    variables: "変数",
+    frames: "Frames",
+    console: "コンソール",
+    chartWindow: "チャート",
+    exportJpg: "JPG出力",
     close: "閉じる",
     visualize: "可視化",
     generate: "生成",
     processing: "処理中...",
     commandPlaceholder: "コマンドを入力 (例: 'summarize price')",
-    quickActions: "クイックアクション",
-    createChart: "チャートを作成",
+    quickActions: "クイック操作",
+    createChart: "チャートビルダー",
     type: "タイプ",
-    xAxis: "X 軸",
-    yAxis: "Y 軸",
+    xAxis: "X軸",
+    yAxis: "Y軸",
     colorBy: "色分け",
     sizeBy: "サイズ",
     select: "選択...",
-    ready: "システム準備完了",
+    ready: "準備完了",
     bar: "棒グラフ",
-    line: "折れ線グラフ",
+    line: "折れ線",
     area: "面グラフ",
     scatter: "散布図",
     pie: "円グラフ",
-    radar: "レーダーチャート",
-    donut: "ドーナツグラフ",
+    radar: "レーダー",
+    donut: "ドーナツ",
     treemap: "ツリーマップ",
-    help: "ヘルプとマニュアル",
+    help: "ヘルプ",
     helpTopics: {
         intro: {
-            title: "はじめに",
-            content: "DataStata.AIへようこそ。この強力なツールは、Stataのような精密な統計コマンドと生成AIの多様性を融合させています。データサイエンティスト、研究者、学生のいずれであっても、厳密な構文またはシンプルな自然言語を使用して複雑な分析を実行できます。\n\n### コア哲学\n• **精密性**: 正確な結果を得るために標準コマンドを使用します。\n• **柔軟性**: 正確な構文がわからない場合は、AIを使用してデータを探索します。\n• **視覚化**: インタラクティブなチャートを即座に生成します。\n\n[UI_PREVIEW: console_intro]\n\nインターフェイスはStataユーザーになじみがあるように設計されていますが、Web向けに近代化されています。"
+            title: "概要",
+            content: "DataStata.AIは、従来の統計コマンド処理とLLM（大規模言語モデル）分析エンジンを統合したものです。ブラウザ内でローカルにデータ操作を実行しながら、AIを利用して定性的な解釈や複雑な構文生成を行うことができます。\n\n### コアアーキテクチャ\n本アプリケーションはハイブリッドモデルで動作します。\n• **ローカルエンジン**: ファイル解析、変数生成、フィルタリング、および統計計算（平均、中央値、標準偏差）は、JavaScriptを使用してローカルで行われます。これにより、標準操作のレイテンシがゼロになります。\n• **AIエンジン**: 統計的要約（メタデータ）がGemini APIに送信され、インサイトの生成、傾向の説明、または可視化構成の作成が行われます。\n\n[UI_PREVIEW: interface_anatomy]\n\n### システム要件\n• **ブラウザ**: Chrome, Edge, Safari, または Firefox（最新バージョン）。\n• **ネットワーク**: AI機能（チャット）にはアクティブなインターネット接続が必要です。ローカルコマンド（Summarize, Gen）は、読み込み後にオフラインで機能します。"
+        },
+        workflow: {
+            title: "ワークフローシミュレーション",
+            content: "このセクションでは、開始から終了までの標準的な分析セッションを示します。\n\n[UI_PREVIEW: workflow_timeline]\n\n### ステップ1: データ取り込み\nユーザーはデータセットをアップロードすることから始めます。システムはヘッダーを解析し、データ型を自動的に検出します。\n> **Frame**: 単一のデータセットのコンテナです。複数のファイルは複数のFrameを作成します。\n\n### ステップ2: 検査\n分析の前に、`summarize` または `describe` コマンドを使用してデータの整合性を検証し、欠損値や外れ値がないか確認するのが標準的な慣行です。\n\n### ステップ3: 実行\nユーザーは以下を選択できます。\n• **命令型コマンド**: 正確な制御（例: `gen log_x = Math.log(x)`）。\n• **自然言語**: 探索的クエリ（例: 「収益の要因は何ですか？」）。"
         },
         data: {
-            title: "データ管理",
-            content: "### データの読み込み\n左側のサイドバーにある「データを読み込む」ボタンを使用してファイルをアップロードします。\n\n**サポートされている形式:**\n• **Excel (.xlsx, .xls)**: 複数のシートをサポートします。ヘッダーを自動的に検出し、日付をフォーマットします（YYYY-MM-DD）。\n• **CSV (.csv)**: 標準のカンマ区切り値。\n\n### 変数管理\n読み込まれると、変数はサイドバーに表示されます。\n• 変数名を **クリック** してコマンドラインに挿入します。\n• 変数の上に **ホバー** して、そのタイプ（数値 #、文字列 A、日付 📅）を確認します。\n\n### Frames (データセット)\n複数のファイルを同時に読み込むことができます。各ファイルは個別の「フレーム」として扱われます。\n• サイドバーの名前をクリックするか、`frame change` コマンドを使用して切り替えます。\n• `merge` を使用して、異なるフレームのデータを結合します。"
+            title: "データ構造",
+            content: "### サポートされている形式\nアプリケーションは以下のフラットファイルデータベースを受け入れます。\n• **CSV (.csv)**: カンマ区切り値。最初の行にはヘッダーが含まれている必要があります。\n• **Excel (.xlsx)**: 各シートは個別のFrameとして読み込まれます。\n\n### 変数タイプ\nシステムは読み込み時にデータ型を自動的に推測します。サイドバーで型を確認できます。\n\n[UI_PREVIEW: variable_types]\n\n### マルチデータセット操作 (Frames)\nアプリケーションは、**Frames**と呼ばれる複数のデータセットを同時に扱うことをサポートしています。\n\n#### Frameの切り替え\nサイドバーのFrame名をクリックしてアクティブにします。すべてのコマンドはアクティブなFrameにのみ適用されます。\n\n#### Frameの結合\n共通の識別子（キー変数）を使用して、あるFrameのデータをアクティブなFrameに結合できます。\n• **コマンド**: `merge 1:1 [キー変数] using [ファイル名]`\n• **要件**: キー変数は、両方のデータセットに同じ名前で存在する必要があります。"
         },
         commands: {
-            title: "Stataコマンド詳細",
-            content: "DataStata.AIは、最も一般的なStataコマンドのサブセットをサポートしています。これらはブラウザ内でローカルに実行され、最大限の速度とプライバシーを提供します。\n\n### 1. Summarize (要約統計)\n要約統計量を計算します（観測数、平均、標準偏差、最小、最大）。\n**構文:** `summarize [変数リスト]`\n**例:** `summarize price mpg weight`\n[UI_PREVIEW: command_summarize]\n\n### 2. Describe (構造の記述)\n変数のタイプと保存情報を表示します。\n**構文:** `describe [変数リスト]`\n**例:** `d price make`\n\n### 3. List (データのリスト)\n生のデータ行を表示します。\n**構文:** `list [変数リスト] in [範囲]`\n**例:** `list make price in 1/5`\n\n### 4. Generate (変数の生成)\nJavaScriptライクな式を使用して新しい変数を作成します。\n**構文:** `generate 新しい変数 = 式`\n**例:** `gen price_per_mpg = price / mpg`\n**注:** `Math.log(x)`、`Math.abs(x)`などの数学関数を使用できます。\n\n### 5. Drop (変数の削除)\nデータセットから変数を削除します。\n**構文:** `drop 変数リスト`\n**例:** `drop temp_var`"
+            title: "コマンドリファレンス",
+            content: "コマンドは大文字と小文字を区別せず、ローカルで実行されます。以下は厳密な構文リファレンスです。\n\n### 検査\n• **summarize [変数リスト]**: 観測数、平均、標準偏差、最小値、最大値を計算します。\n  `su price mpg`\n• **describe**: 変数名と保存タイプをリストします。\n  `d`\n• **list [変数リスト] in [範囲]**: 生のデータ行を表示します。\n  `list make price in 1/5`\n• **count**: 観測（行）の数を返します。\n\n### 操作\n• **generate [新変数] = [式]**: JavaScript式に基づいて新しい列を作成します。\n  `gen volume = height * width * depth`\n  `gen log_price = Math.log(price)`\n• **drop [変数リスト]**: メモリから列を削除します。\n  `drop temp_var`\n\n### システム\n• **clear all**: メモリからすべてのデータセットを削除します。\n• **frame change [名前]**: アクティブなデータセットを切り替えます。"
         },
         ai: {
-            title: "AI分析",
-            content: "厳密な構文では不十分な場合は、AIに質問してください。AIは変数の要約とサンプルデータにアクセスできます。\n\n### 探索的分析\nデータについて質問するだけです：\n• 「売上の経時的な傾向は何ですか？」\n• 「身長と体重の間に相関関係はありますか？」\n• 「年齢の分布を解釈してください。」\n\n### 統計シミュレーション\nAIは、Stata出力のようにフォーマットされた回帰やt検定の高度な出力テキストをシミュレートできます：\n• 「priceのmpgとweightに対する回帰を実行してください」\n• 「性別による給与のt検定を実行してください」\n\n[UI_PREVIEW: ai_regression]\n\n**ヒント:** AIは要約のみを参照するため、完全なデータセットで実際の回帰を実行することはできません。これらは分析的な推定または例示的なフォーマットです。"
+            title: "AI & インサイト",
+            content: "AIモジュールは自然言語を解釈し、通常は複雑な構文を必要とするタスクを実行します。\n\n### ロジックフロー\n1. **ユーザークエリ**: 「なぜ利益が低いのですか？」\n2. **コンテキスト注入**: システムはすべての変数の要約（生の行ではない）を計算し、モデルに送信します。\n3. **推論**: モデルは分散の高い変数を相関させるか、要約内の外れ値を特定します。\n4. **応答**: モデルはテキスト分析またはチャートをレンダリングするためのJSON構成を返します。\n\n### 機能\n• **傾向分析**: 数値分布の解釈。\n• **構文変換**: 英語からStataコマンドへの変換。\n• **仮説生成**: 名前とタイプに基づいて変数間の関係を提案します。\n\n> **注意**: プライバシーのため、特に要求されない限り（例: 「最初の5行を分析して」）、生のデータ行はAIに送信されません。デフォルトでは、メタデータ（平均/最大/最小）のみが送信されます。"
         },
         viz: {
-            title: "視覚化",
-            content: "### 自然言語プロット\nデータを表示する最速の方法です。尋ねるだけです：\n• 「price対mpgの散布図」\n• 「車のメーカーの棒グラフを表示」\n• 「日付と終値の折れ線グラフ」\n\n### インタラクティブチャートビルダー\nさらに制御するには、データグリッドの **可視化** ボタンを使用します。\n1. チャートタイプ（棒、折れ線、散布図など）を選択します。\n2. X軸とY軸の変数を選択します。\n3. 複数のシリーズまたはフィルターを追加します。\n4. **生成** をクリックします。\n\n### インライン編集\nチャートが生成されたら、直接変更できます：\n• ドロップダウンでX軸変数を変更します。\n• 新しいY軸シリーズを追加します。\n• カラーチップをクリックしてシリーズの色を変更します。\n\n[UI_PREVIEW: chart_example]"
+            title: "可視化",
+            content: "チャートはRechartsライブラリを使用してレンダリングされます。作成には2つの方法があります。\n\n### 方法A: 自然言語\nコマンドコンソールで目的のチャートを記述します。\n• 「A対Bの散布図」\n• 「日付と終値の折れ線グラフ」\n\n### 方法B: チャートビルダー\n正確な軸制御を行うには、GUIビルダーを使用します。\n\n[UI_PREVIEW: builder_guide]\n\n#### 構成パラメータ\n• **X軸**: 独立変数（カテゴリ、時間）。\n• **Y軸**: 従属変数（値）。\n• **グループ/色**: カテゴリ変数に基づいて複数のシリーズを作成するために使用されます。\n• **フィルタ**: プロットする前にデータ範囲を制限します。"
         }
     }
   },
   'ko': {
     title: "DataStata.AI",
-    loadData: "데이터 불러오기",
-    viewData: "데이터 그리드 보기",
-    hideData: "데이터 그리드 숨기기",
-    variables: "변수 목록",
-    frames: "Frames (데이터셋)",
-    console: "명령 콘솔",
-    chartWindow: "차트 창",
+    loadData: "데이터 로드",
+    viewData: "그리드 보기",
+    hideData: "그리드 숨기기",
+    variables: "변수",
+    frames: "Frames",
+    console: "콘솔",
+    chartWindow: "차트",
     exportJpg: "JPG 내보내기",
     close: "닫기",
     visualize: "시각화",
     generate: "생성",
     processing: "처리 중...",
-    commandPlaceholder: "명령어 입력 (예: 'summarize price')",
+    commandPlaceholder: "명령 입력 (예: 'summarize price')",
     quickActions: "빠른 작업",
-    createChart: "차트 생성",
+    createChart: "차트 빌더",
     type: "유형",
     xAxis: "X 축",
     yAxis: "Y 축",
     colorBy: "색상 그룹",
-    sizeBy: "크기 가중치",
+    sizeBy: "크기",
     select: "선택...",
-    ready: "시스템 준비됨",
-    bar: "막대 차트",
-    line: "선 차트",
-    area: "영역 차트",
+    ready: "준비",
+    bar: "막대",
+    line: "선",
+    area: "영역",
     scatter: "산점도",
-    pie: "파이 차트",
-    radar: "레이더 차트",
-    donut: "도넛 차트",
+    pie: "파이",
+    radar: "레이더",
+    donut: "도넛",
     treemap: "트리맵",
-    help: "도움말 및 설명서",
+    help: "도움말",
     helpTopics: {
         intro: {
-            title: "소개",
-            content: "DataStata.AI에 오신 것을 환영합니다. 이 강력한 도구는 Stata 스타일의 정밀한 통계 명령과 생성형 AI의 유연성을 결합합니다. 데이터 과학자, 연구원, 학생 모두 엄격한 구문이나 간단한 자연어를 사용하여 복잡한 분석을 수행할 수 있습니다.\n\n### 핵심 철학\n• **정밀성**: 정확한 결과를 위해 표준 명령을 사용합니다.\n• **유연성**: 정확한 구문을 모를 때는 AI를 사용하여 데이터를 탐색합니다.\n• **시각화**: 대화형 차트를 즉시 생성합니다.\n\n[UI_PREVIEW: console_intro]\n\n인터페이스는 Stata 사용자에게 친숙하도록 설계되었지만 웹에 맞게 현대화되었습니다."
+            title: "시스템 개요",
+            content: "DataStata.AI는 전통적인 통계 명령 처리와 LLM(대규모 언어 모델) 분석 엔진을 통합합니다. 사용자는 브라우저 내에서 로컬로 데이터를 조작하는 동시에 AI를 활용하여 정성적 해석과 복잡한 구문 생성을 수행할 수 있습니다.\n\n### 핵심 아키텍처\n이 애플리케이션은 하이브리드 모델로 작동합니다:\n• **로컬 엔진**: 파일 파싱, 변수 생성, 필터링 및 통계 계산(평균, 중앙값, 표준 편차)은 JavaScript를 사용하여 로컬에서 수행됩니다. 이를 통해 표준 작업의 지연 시간을 없앱니다.\n• **AI 엔진**: 통계 요약(메타데이터)이 Gemini API로 전송되어 인사이트를 생성하고, 추세를 설명하거나 시각화 구성을 생성합니다.\n\n[UI_PREVIEW: interface_anatomy]\n\n### 시스템 요구 사항\n• **브라우저**: Chrome, Edge, Safari 또는 Firefox (최신 버전).\n• **네트워크**: AI 기능(채팅)에는 인터넷 연결이 필요합니다. 로컬 명령(Summarize, Gen)은 로드된 후 오프라인에서 작동합니다."
+        },
+        workflow: {
+            title: "워크플로우 시뮬레이션",
+            content: "이 섹션에서는 시작부터 끝까지의 표준 분석 세션을 보여줍니다.\n\n[UI_PREVIEW: workflow_timeline]\n\n### 1단계: 데이터 수집\n사용자는 데이터 세트를 업로드하여 시작합니다. 시스템은 헤더를 파싱하고 데이터 유형을 자동으로 감지합니다.\n> **Frame**: 단일 데이터 세트의 컨테이너입니다. 여러 파일은 여러 Frame을 생성합니다.\n\n### 2단계: 검사\n분석 전에 `summarize` 또는 `describe` 명령을 사용하여 데이터 무결성을 검증하고 결측값이나 이상값을 확인하는 것이 표준 관행입니다.\n\n### 3단계: 실행\n사용자는 다음 중에서 선택할 수 있습니다:\n• **명령형 명령**: 정밀 제어 (예: `gen log_x = Math.log(x)`).\n• **자연어**: 탐색적 쿼리 (예: \"수익의 요인은 무엇입니까?\")."
         },
         data: {
-            title: "데이터 관리",
-            content: "### 데이터 로드\n왼쪽 사이드바의 '데이터 불러오기' 버튼을 통해 파일을 업로드할 수 있습니다.\n\n**지원 형식:**\n• **Excel (.xlsx, .xls)**: 여러 시트를 지원합니다. 앱이 자동으로 헤더를 감지하고 날짜 형식을 지정합니다(YYYY-MM-DD).\n• **CSV (.csv)**: 표준 쉼표 구분 값입니다.\n\n### 변수 관리\n로드되면 변수가 사이드바에 나타납니다.\n• 변수 이름을 **클릭**하여 명령줄에 삽입합니다.\n• 변수 위로 마우스를 **가져가면** 유형(숫자 #, 문자열 A, 날짜 📅)을 볼 수 있습니다.\n\n### Frames (데이터셋)\n여러 파일을 동시에 로드할 수 있습니다. 각 파일은 별도의 'Frame'으로 처리됩니다.\n• 사이드바에서 이름을 클릭하거나 `frame change` 명령을 사용하여 전환합니다.\n• `merge`를 사용하여 다른 프레임의 데이터를 결합합니다."
+            title: "데이터 구조",
+            content: "### 지원되는 형식\n애플리케이션은 다음 플랫 파일 데이터베이스를 허용합니다:\n• **CSV (.csv)**: 쉼표로 구분된 값. 첫 번째 행에는 헤더가 포함되어야 합니다.\n• **Excel (.xlsx)**: 각 시트는 별도의 Frame으로 로드됩니다.\n\n### 변수 유형\n시스템은 로드 시 데이터 유형을 자동으로 추론합니다. 사이드바에서 유형을 확인할 수 있습니다.\n\n[UI_PREVIEW: variable_types]\n\n### 다중 데이터 세트 작업 (Frames)\n애플리케이션은 **Frames**라고 하는 여러 데이터 세트를 동시에 작업하는 것을 지원합니다.\n\n#### Frame 전환\n사이드바에서 Frame 이름을 클릭하여 활성화합니다. 모든 명령은 활성 Frame에만 적용됩니다.\n\n#### Frame 병합\n공통 식별자(키 변수)를 사용하여 한 Frame의 데이터를 활성 Frame에 결합할 수 있습니다.\n• **명령**: `merge 1:1 [키 변수] using [파일명]`\n• **요구 사항**: 키 변수는 두 데이터 세트에 동일한 이름으로 존재해야 합니다."
         },
         commands: {
-            title: "Stata 명령어 상세",
-            content: "DataStata.AI는 가장 일반적인 Stata 명령의 하위 집합을 지원합니다. 이들은 브라우저에서 로컬로 실행되어 최대 속도와 개인 정보 보호를 제공합니다.\n\n### 1. Summarize (요약 통계)\n요약 통계(관측수, 평균, 표준 편차, 최소, 최대)를 계산합니다.\n**구문:** `summarize [변수목록]`\n**예:** `summarize price mpg weight`\n[UI_PREVIEW: command_summarize]\n\n### 2. Describe (구조 설명)\n변수 유형 및 저장 정보를 표시합니다.\n**구문:** `describe [변수목록]`\n**예:** `d price make`\n\n### 3. List (데이터 나열)\n원시 데이터 행을 표시합니다.\n**구문:** `list [변수목록] in [범위]`\n**예:** `list make price in 1/5`\n\n### 4. Generate (변수 생성)\nJavaScript와 유사한 표현식을 사용하여 새 변수를 만듭니다.\n**구문:** `generate 새변수 = 표현식`\n**예:** `gen price_per_mpg = price / mpg`\n**참고:** `Math.log(x)`, `Math.abs(x)` 등의 수학 함수를 사용할 수 있습니다.\n\n### 5. Drop (변수 삭제)\n데이터 세트에서 변수를 제거합니다.\n**구문:** `drop 변수목록`\n**예:** `drop temp_var`"
+            title: "명령 참조",
+            content: "명령은 대소문자를 구분하지 않으며 로컬에서 실행됩니다. 다음은 엄격한 구문 참조입니다.\n\n### 검사\n• **summarize [변수 목록]**: 관측 수, 평균, 표준 편차, 최소값, 최대값을 계산합니다.\n  `su price mpg`\n• **describe**: 변수 이름과 저장 유형을 나열합니다.\n  `d`\n• **list [변수 목록] in [범위]**: 원시 데이터 행을 표시합니다.\n  `list make price in 1/5`\n• **count**: 관측(행) 수를 반환합니다.\n\n### 조작\n• **generate [새 변수] = [표현식]**: JavaScript 표현식을 기반으로 새 열을 생성합니다.\n  `gen volume = height * width * depth`\n  `gen log_price = Math.log(price)`\n• **drop [변수 목록]**: 메모리에서 열을 삭제합니다.\n  `drop temp_var`\n\n### 시스템\n• **clear all**: 메모리에서 모든 데이터 세트를 삭제합니다.\n• **frame change [이름]**: 활성 데이터 세트를 전환합니다."
         },
         ai: {
-            title: "AI 분석",
-            content: "엄격한 구문만으로 충분하지 않은 경우 AI에게 물어보세요. AI는 변수 요약 및 샘플 데이터에 액세스할 수 있습니다.\n\n### 탐색적 분석\n데이터에 대해 질문하기만 하면 됩니다.\n• \"시간에 따른 매출 추세는 무엇입니까?\"\n• \"키와 몸무게 사이에 상관 관계가 있습니까?\"\n• \"나이의 분포를 해석하십시오.\"\n\n### 통계 시뮬레이션\nAI는 Stata 출력과 같은 형식의 회귀 또는 t-검정에 대한 고급 출력 텍스트를 시뮬레이션할 수 있습니다.\n• \"price의 mpg 및 weight에 대한 회귀 분석 실행\"\n• \"성별에 따른 급여에 대한 t-검정 수행\"\n\n[UI_PREVIEW: ai_regression]\n\n**팁:** AI는 요약만 보기 때문에 전체 데이터 세트에서 실제 회귀를 실행할 수 없습니다. 이는 분석적 추정치 또는 예시 형식입니다."
+            title: "AI 및 인사이트",
+            content: "AI 모듈은 자연어를 해석하여 일반적으로 복잡한 구문이 필요한 작업을 수행합니다.\n\n### 논리 흐름\n1. **사용자 쿼리**: \"수익이 낮은 이유는 무엇입니까?\"\n2. **컨텍스트 주입**: 시스템은 모든 변수의 요약(원시 행 아님)을 계산하여 모델로 전송합니다.\n3. **추론**: 모델은 분산이 높은 변수를 상관시키거나 요약 내의 이상값을 식별합니다.\n4. **응답**: 모델은 텍스트 분석 또는 차트를 렌더링하기 위한 JSON 구성을 반환합니다.\n\n### 기능\n• **추세 분석**: 수치 분포 해석.\n• **구문 변환**: 영어를 Stata 명령으로 변환.\n• **가설 생성**: 이름과 유형을 기반으로 변수 간의 관계 제안.\n\n> **참고**: 개인 정보 보호를 위해 특별히 요청되지 않는 한(예: \"처음 5행 분석\"), 원시 데이터 행은 AI로 전송되지 않습니다. 기본적으로 메타데이터(평균/최대/최소)만 전송됩니다."
         },
         viz: {
             title: "시각화",
-            content: "### 자연어 플로팅\n데이터를 보는 가장 빠른 방법입니다. 질문하세요:\n• \"price 대 mpg의 산점도\"\n• \"자동차 제조사의 막대 차트 표시\"\n• \"날짜 및 종가에 대한 선 차트\"\n\n### 대화형 차트 빌더\n더 많은 제어를 하려면 데이터 그리드에서 **시각화** 버튼을 사용하십시오.\n1. 차트 유형(막대, 선, 산점도 등)을 선택합니다.\n2. X축 및 Y축 변수를 선택합니다.\n3. 여러 시리즈 또는 필터를 추가합니다.\n4. **생성**을 클릭합니다.\n\n### 인라인 편집\n차트가 생성되면 직접 수정할 수 있습니다.\n• 드롭다운을 통해 X축 변수를 변경합니다.\n• 새 Y축 시리즈를 추가합니다.\n• 색상 칩을 클릭하여 시리즈 색상을 변경합니다.\n\n[UI_PREVIEW: chart_example]"
+            content: "차트는 Recharts 라이브러리를 사용하여 렌더링됩니다. 생성에는 두 가지 방법이 있습니다.\n\n### 방법 A: 자연어\n명령 콘솔에서 원하는 차트를 설명합니다.\n• \"A 대 B의 산점도\"\n• \"날짜 및 종가의 선 차트\"\n\n### 방법 B: 차트 빌더\n정밀한 축 제어를 하려면 GUI 빌더를 사용하십시오.\n\n[UI_PREVIEW: builder_guide]\n\n#### 구성 매개변수\n• **X 축**: 독립 변수(범주, 시간).\n• **Y 축**: 종속 변수(값).\n• **그룹/색상**: 범주형 변수를 기반으로 여러 시리즈를 생성하는 데 사용됩니다.\n• **필터**: 플로팅하기 전에 데이터 범위를 제한합니다."
         }
     }
   }
