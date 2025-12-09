@@ -17,7 +17,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
 
   const navItems = [
     { id: 'intro', icon: Book },
-    { id: 'workflow', icon: Play }, // New Workflow section
+    { id: 'workflow', icon: Play },
     { id: 'data', icon: Database },
     { id: 'commands', icon: Terminal },
     { id: 'ai', icon: Sparkles },
@@ -77,7 +77,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
                     <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">Load Data</h4>
                     <div className="mt-2 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs flex items-center gap-2">
                         <LayoutTemplate className="w-4 h-4 text-gray-400"/>
-                        <span>Upload <code>data.csv</code> -> Frame Created</span>
+                        <span>Upload <code>data.csv</code> &rarr; Frame Created</span>
                     </div>
                 </div>
 
