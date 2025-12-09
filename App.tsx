@@ -4,11 +4,12 @@ import { Sidebar } from './components/Sidebar';
 import { Console } from './components/Console';
 import { DataGrid } from './components/DataGrid';
 import { ChartWindow } from './components/ChartWindow';
+import { HelpModal } from './components/HelpModal';
 import { LogEntry, LogType, DataRow, Dataset, SheetData, getActiveSheet, Language, ChartConfig, Theme } from './types';
 import { parseCSV, generateSummaries, parseExcel } from './utils/dataUtils';
 import { analyzeData } from './services/geminiService';
 import { interpretStataCommand } from './services/stataInterpreter';
-import { Loader2, Terminal, Send, List, Activity, Trash2, LayoutTemplate } from 'lucide-react';
+import { Loader2, Terminal, Send, List, Activity, Trash2, LayoutTemplate, CircleHelp } from 'lucide-react';
 import { getTranslation } from './utils/translations';
 
 const App: React.FC = () => {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [commandInput, setCommandInput] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [apiKeyError, setApiKeyError] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const t = getTranslation(language);
   const inputElementRef = useRef<HTMLTextAreaElement>(null);
@@ -289,51 +291,67 @@ const App: React.FC = () => {
                     theme={theme}
                 />
             )}
+            
+            {isHelpOpen && (
+                <HelpModal 
+                    onClose={() => setIsHelpOpen(false)}
+                    language={language}
+                />
+            )}
         </div>
 
         <div 
-            className={`border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 transition-all duration-300 ease-in-out shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30 ${isInputFocused ? 'h-48' : 'h-16'}`}
+            className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 transition-all duration-300 ease-in-out shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30 flex flex-col shrink-0"
+            style={{ height: isInputFocused ? '180px' : '100px' }}
         >
-            <div className="h-full flex flex-col">
-                <div className={`overflow-hidden transition-all duration-300 ${isInputFocused ? 'h-12 opacity-100' : 'h-0 opacity-0'} bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center px-4 gap-2`}>
-                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-2">{t.quickActions}:</span>
-                    <button onClick={() => insertCommand('summarize')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><List className="w-3 h-3"/> summarize</button>
-                    <button onClick={() => insertCommand('describe')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><LayoutTemplate className="w-3 h-3"/> describe</button>
-                    <button onClick={() => insertCommand('list in 1/10')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><Activity className="w-3 h-3"/> list</button>
-                    <button onClick={() => insertCommand('clear all')} className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded hover:bg-red-100 dark:hover:bg-red-900/50 flex items-center gap-1 ml-auto"><Trash2 className="w-3 h-3"/> clear</button>
-                </div>
-
-                <form onSubmit={handleCommand} className="flex-1 flex items-center p-3 relative">
-                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Terminal className="w-5 h-5" />
-                     </div>
-                     <textarea
-                        ref={inputElementRef}
-                        value={commandInput}
-                        onChange={(e) => setCommandInput(e.target.value)}
-                        onFocus={() => {
-                            setIsInputFocused(true);
-                            setIsConsoleOpen(true); 
-                        }}
-                        onBlur={() => setTimeout(() => setIsInputFocused(false), 200)} 
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleCommand();
-                            }
-                        }}
-                        placeholder={t.commandPlaceholder}
-                        className="w-full h-full pl-10 pr-12 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none font-mono text-sm leading-relaxed shadow-sm transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400"
-                     />
+            {/* Quick Actions Bar - Always Visible */}
+            <div className="h-10 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center px-4 gap-2 shrink-0">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-2">{t.quickActions}:</span>
+                <button onClick={() => insertCommand('summarize')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><List className="w-3 h-3"/> summarize</button>
+                <button onClick={() => insertCommand('describe')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><LayoutTemplate className="w-3 h-3"/> describe</button>
+                <button onClick={() => insertCommand('list in 1/10')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><Activity className="w-3 h-3"/> list</button>
+                <div className="ml-auto flex items-center gap-2">
                      <button 
-                        type="submit"
-                        disabled={!commandInput.trim() || isProcessing}
-                        className="absolute right-5 top-1/2 -translate-y-1/2 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-600 rounded-full disabled:text-gray-300 dark:disabled:text-gray-600 transition-colors"
+                        onClick={() => setIsHelpOpen(true)} 
+                        className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1"
+                        title="Help & Manual"
                      >
-                        {isProcessing ? <Loader2 className="w-5 h-5 animate-spin"/> : <Send className="w-5 h-5" />}
+                         <CircleHelp className="w-3 h-3"/> {t.help}
                      </button>
-                </form>
+                     <button onClick={() => insertCommand('clear all')} className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded hover:bg-red-100 dark:hover:bg-red-900/50 flex items-center gap-1"><Trash2 className="w-3 h-3"/> clear</button>
+                </div>
             </div>
+
+            <form onSubmit={handleCommand} className="flex-1 flex items-center p-3 relative min-h-0">
+                 <div className="absolute left-6 top-6 text-gray-400">
+                    <Terminal className="w-5 h-5" />
+                 </div>
+                 <textarea
+                    ref={inputElementRef}
+                    value={commandInput}
+                    onChange={(e) => setCommandInput(e.target.value)}
+                    onFocus={() => {
+                        setIsInputFocused(true);
+                        setIsConsoleOpen(true); 
+                    }}
+                    onBlur={() => setTimeout(() => setIsInputFocused(false), 200)} 
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleCommand();
+                        }
+                    }}
+                    placeholder={t.commandPlaceholder}
+                    className="w-full h-full pl-10 pr-12 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none font-mono text-sm leading-relaxed shadow-sm transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                 />
+                 <button 
+                    type="submit"
+                    disabled={!commandInput.trim() || isProcessing}
+                    className="absolute right-5 top-1/2 -translate-y-1/2 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-600 rounded-full disabled:text-gray-300 dark:disabled:text-gray-600 transition-colors"
+                 >
+                    {isProcessing ? <Loader2 className="w-5 h-5 animate-spin"/> : <Send className="w-5 h-5" />}
+                 </button>
+            </form>
         </div>
       </main>
     </div>

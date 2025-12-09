@@ -1,4 +1,3 @@
-
 import { DataRow, VariableSummary, SheetData, Dataset } from '../types';
 import { read, utils } from 'xlsx';
 
@@ -12,7 +11,7 @@ const formatDate = (date: Date): string => {
 
 export const parseExcel = (buffer: ArrayBuffer): { [sheetName: string]: DataRow[] } => {
   try {
-    const workbook = read(buffer, { type: 'array' });
+    const workbook = read(buffer, { type: 'array', cellDates: true });
     if (workbook.SheetNames.length === 0) return {};
     
     const result: { [sheetName: string]: DataRow[] } = {};
@@ -20,8 +19,9 @@ export const parseExcel = (buffer: ArrayBuffer): { [sheetName: string]: DataRow[
     workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
         
-        // Use cellDates: true to interpret numbers as dates where appropriate
-        const rawData = utils.sheet_to_json(worksheet, { defval: null, cellDates: true }) as any[];
+        // Use cellDates: true in read() above interprets numbers as dates where appropriate.
+        // Removed cellDates from sheet_to_json options as it is not a valid property there.
+        const rawData = utils.sheet_to_json(worksheet, { defval: null }) as any[];
         
         if (rawData.length > 0) {
             // Post-process to format Dates as YYYY-MM-DD string

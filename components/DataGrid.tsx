@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Dataset, getActiveSheet, Language, ChartConfig, SeriesConfig, Theme, ColorPalette } from '../types';
-import { FileText, BarChart2, Download, X, Plus, ChevronDown, Filter, MoveDiagonal, Palette as PaletteIcon, Check } from 'lucide-react';
+import { FileText, BarChart2, Download, X, Plus, ChevronDown, Filter, MoveDiagonal, Palette as PaletteIcon, Check, Layers, ListFilter } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 import { ChartRenderer } from './ChartRenderer';
 import { downloadChartAsJpg } from '../utils/chartUtils';
@@ -48,6 +48,10 @@ export const DataGrid: React.FC<DataGridProps> = ({
 
   // Inline Chart State
   const [inlineChart, setInlineChart] = useState<ChartConfig | null>(null);
+  
+  // Inline Chart Interactivity State
+  const [inlineColorPickerIndex, setInlineColorPickerIndex] = useState<number | null>(null);
+  const [showInlineAddY, setShowInlineAddY] = useState(false);
 
   // Pane Resize State
   const [paneSize, setPaneSize] = useState({ width: 500, height: 450 });
@@ -98,6 +102,36 @@ export const DataGrid: React.FC<DataGridProps> = ({
       }
       setTempSeries(newS);
   };
+  
+  // --- Inline Chart Handlers ---
+  const handleInlineXChange = (newX: string) => {
+      if (!inlineChart) return;
+      setInlineChart({ ...inlineChart, xAxisKey: newX });
+  };
+  
+  const handleInlineAddY = (varName: string) => {
+      if (!inlineChart) return;
+      const color = PRESET_PALETTE[inlineChart.series.length % PRESET_PALETTE.length];
+      setInlineChart({
+          ...inlineChart,
+          series: [...inlineChart.series, { dataKey: varName, label: varName, color }]
+      });
+      setShowInlineAddY(false);
+  };
+
+  const handleInlineRemoveY = (index: number) => {
+      if (!inlineChart) return;
+      const newSeries = [...inlineChart.series];
+      newSeries.splice(index, 1);
+      setInlineChart({ ...inlineChart, series: newSeries });
+  };
+
+  const handleInlineUpdateSeries = (index: number, updates: Partial<SeriesConfig>) => {
+      if (!inlineChart) return;
+      const newSeries = [...inlineChart.series];
+      newSeries[index] = { ...newSeries[index], ...updates };
+      setInlineChart({ ...inlineChart, series: newSeries });
+  };
 
   const handleCreateChart = () => {
       if (!xVar || tempSeries.length === 0) return;
@@ -128,6 +162,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   const usedInY = new Set(tempSeries.map(s => s.dataKey));
   const xOptions = summaries.filter(s => !usedInY.has(s.name));
   const yOptions = summaries.filter(s => s.type === 'number' && s.name !== xVar);
+  const allNumeric = summaries.filter(s => s.type === 'number');
   const INLINE_CHART_ID = "inline-chart-pane";
 
   // Resize Handlers
@@ -298,60 +333,6 @@ export const DataGrid: React.FC<DataGridProps> = ({
                                                                           />
                                                                       ))}
                                                                   </div>
-
-                                                                  {/* Custom Palettes */}
-                                                                  {customPalettes.length > 0 && (
-                                                                      <>
-                                                                          <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">My Libraries</div>
-                                                                          {customPalettes.map(pal => (
-                                                                              <div key={pal.id} className="mb-2">
-                                                                                  <div className="text-[10px] text-gray-400 mb-1">{pal.name}</div>
-                                                                                  <div className="flex flex-wrap gap-1">
-                                                                                      {pal.colors.map(color => (
-                                                                                          <button 
-                                                                                            key={color} 
-                                                                                            className="w-5 h-5 rounded-md hover:scale-110"
-                                                                                            style={{ backgroundColor: color }}
-                                                                                            onClick={() => {
-                                                                                                handleUpdateSeries(i, { color });
-                                                                                                setOpenColorPickerIndex(null);
-                                                                                            }}
-                                                                                          />
-                                                                                      ))}
-                                                                                  </div>
-                                                                              </div>
-                                                                          ))}
-                                                                      </>
-                                                                  )}
-
-                                                                  {/* Create New Palette */}
-                                                                  <div className="border-t border-gray-100 dark:border-gray-700 pt-2 mt-2">
-                                                                      {!isCreatingPalette ? (
-                                                                          <button 
-                                                                            onClick={() => setIsCreatingPalette(true)}
-                                                                            className="w-full flex items-center justify-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                                                                          >
-                                                                              <Plus className="w-3 h-3"/> New Library
-                                                                          </button>
-                                                                      ) : (
-                                                                          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                                                              <div className="flex items-center gap-2 mb-2">
-                                                                                  <input type="color" value={newPaletteBase} onChange={e => setNewPaletteBase(e.target.value)} className="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer"/>
-                                                                                  <select 
-                                                                                    value={newPaletteCount} 
-                                                                                    onChange={e => setNewPaletteCount(Number(e.target.value))}
-                                                                                    className="text-xs border rounded p-1 flex-1 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
-                                                                                  >
-                                                                                      {[4, 8, 12, 16, 20, 24].map(n => <option key={n} value={n}>{n} Colors</option>)}
-                                                                                  </select>
-                                                                              </div>
-                                                                              <div className="flex gap-2">
-                                                                                  <button onClick={handleCreatePalette} className="flex-1 text-xs bg-blue-600 text-white rounded py-1">Save</button>
-                                                                                  <button onClick={() => setIsCreatingPalette(false)} className="px-2 text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">Cancel</button>
-                                                                              </div>
-                                                                          </div>
-                                                                      )}
-                                                                  </div>
                                                               </div>
                                                           )}
                                                       </div>
@@ -472,6 +453,93 @@ export const DataGrid: React.FC<DataGridProps> = ({
                         <button onClick={() => setInlineChart(null)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><X className="w-3.5 h-3.5" /></button>
                     </div>
                 </div>
+
+                {/* Conditions Bar with Interactive Controls */}
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700 min-h-[40px]">
+                    <div className="flex items-center gap-1 text-gray-400 mr-1">
+                        <ListFilter className="w-3 h-3" />
+                    </div>
+
+                    {/* Interactive X Axis Label */}
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[10px] font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 relative group">
+                        <span className="text-gray-400">X:</span> 
+                        <select 
+                            className="bg-transparent outline-none appearance-none cursor-pointer pr-3 font-semibold"
+                            value={inlineChart.xAxisKey} 
+                            onChange={(e) => handleInlineXChange(e.target.value)}
+                        >
+                            {summaries.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-gray-400 pointer-events-none"/>
+                    </div>
+
+                    {/* Filter (Read only for now) */}
+                    {inlineChart.xFilter && (
+                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-[10px] font-medium text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            <Filter className="w-2.5 h-2.5" />
+                            {inlineChart.xFilter.column} = {inlineChart.xFilter.value}
+                        </div>
+                    )}
+                    
+                    <div className="w-px h-3 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+                    
+                    {/* Y Axis Series (Interactive) */}
+                    {inlineChart.series.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white dark:bg-gray-700 text-[10px] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm relative group">
+                            <button 
+                                onClick={() => setInlineColorPickerIndex(inlineColorPickerIndex === idx ? null : idx)}
+                                className="w-2 h-2 rounded-full ring-1 ring-black/5 dark:ring-white/10 hover:scale-125 transition-transform" 
+                                style={{ backgroundColor: s.color || PRESET_PALETTE[idx % PRESET_PALETTE.length] }}
+                            />
+                            {s.label || s.dataKey}
+                            <button 
+                                onClick={() => handleInlineRemoveY(idx)}
+                                className="ml-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="w-2.5 h-2.5" />
+                            </button>
+
+                            {/* Inline Color Picker */}
+                            {inlineColorPickerIndex === idx && (
+                                <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded p-2 w-32 animate-in fade-in zoom-in-95 grid grid-cols-4 gap-1">
+                                    {PRESET_PALETTE.map(c => (
+                                        <button 
+                                            key={c}
+                                            className="w-5 h-5 rounded hover:scale-110"
+                                            style={{ backgroundColor: c }}
+                                            onClick={() => {
+                                                handleInlineUpdateSeries(idx, { color: c });
+                                                setInlineColorPickerIndex(null);
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    
+                    {/* Add Y Button */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowInlineAddY(!showInlineAddY)}
+                            className="w-5 h-5 flex items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                        >
+                            <Plus className="w-3 h-3"/>
+                        </button>
+                        {showInlineAddY && (
+                             <select 
+                                className="absolute top-full left-0 mt-1 w-32 text-[10px] border rounded bg-white dark:bg-gray-700 shadow-lg p-1 outline-none z-50"
+                                size={5}
+                                onChange={(e) => handleInlineAddY(e.target.value)}
+                             >
+                                 {allNumeric.filter(n => !inlineChart.series.find(s => s.dataKey === n.name) && n.name !== inlineChart.xAxisKey).map(n => (
+                                     <option key={n.name} value={n.name} className="p-1 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer">{n.name}</option>
+                                 ))}
+                             </select>
+                        )}
+                    </div>
+                </div>
+
                 <div className="flex-1 p-4 bg-white dark:bg-gray-800 min-h-0 relative" id={INLINE_CHART_ID}>
                     <ChartRenderer config={inlineChart} data={data} theme={theme} />
                 </div>

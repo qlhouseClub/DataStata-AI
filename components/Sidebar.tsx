@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { VariableSummary, Dataset, Language, Theme } from '../types';
-import { FileSpreadsheet, Hash, Type as TypeIcon, Calendar, Upload, Database, Layers, Languages, Layout, Trash2, Moon, Sun } from 'lucide-react';
+import { FileSpreadsheet, Hash, Type as TypeIcon, Calendar, Upload, Database, Layers, Languages, Layout, Trash2, Moon, Sun, Heart } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 
 interface SidebarProps {
@@ -37,6 +37,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const activeDataset = datasets.find(d => d.id === activeDatasetId);
   const activeSheetName = activeDataset ? activeDataset.activeSheetName : '';
   const summaries = activeDataset ? activeDataset.sheets[activeSheetName].summaries : [];
+  
+  const [fireworks, setFireworks] = useState<{id: number, x: number, y: number, color: string, size: number}[]>([]);
+  const [likeCount, setLikeCount] = useState(88);
+
+  const handleHeartClick = (e: React.MouseEvent) => {
+    // 1. Increment Count
+    setLikeCount(prev => prev + 1);
+
+    // 2. Trigger Fireworks
+    triggerFireworks(e);
+  };
+
+  const triggerFireworks = (e: React.MouseEvent) => {
+    // Prevent event bubbling if necessary, but here we want it to trigger on the wrapper
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    
+    // Delicate fireworks: smaller particles, more variation, pastel/vibrant mix
+    const colors = ['#f472b6', '#3b82f6', '#34d399', '#ffb703', '#a78bfa', '#fb7185'];
+    const particleCount = 24;
+    
+    const newParticles = Array.from({ length: particleCount }).map((_, i) => {
+        const angle = (Math.PI * 2 * i) / particleCount;
+        // Vary velocity for "explosion" feel
+        const velocity = 30 + Math.random() * 60; 
+        return {
+            id: Date.now() + i,
+            x: Math.cos(angle) * velocity + (Math.random() * 10 - 5),
+            y: Math.sin(angle) * velocity + (Math.random() * 10 - 5),
+            color: colors[Math.floor(Math.random() * colors.length)],
+            size: Math.random() > 0.5 ? 2 : 3 // Small sizes
+        };
+    });
+    
+    setFireworks(newParticles);
+    setTimeout(() => setFireworks([]), 1000);
+  };
 
   return (
     <div className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full shrink-0 z-10 shadow-lg transition-colors duration-200">
@@ -153,8 +189,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
       
-      <div className="p-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400">
-        DataStata.AI v2.2
+      <div className="p-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400 flex justify-between items-center relative select-none">
+         <span>DataStata.AI v2.2</span>
+         
+         <div 
+            className="relative group cursor-pointer p-2 -m-2 flex items-center justify-center"
+            onClick={handleHeartClick}
+         >
+            {/* Count Badge Bubble */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-red-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.5rem] text-center shadow-sm z-20 pointer-events-none whitespace-nowrap">
+                {likeCount}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-0.5 border-4 border-transparent border-t-red-400"></div>
+            </div>
+
+            <Heart 
+              className="w-3.5 h-3.5 text-red-400 group-hover:text-red-500 transition-colors group-hover:animate-heartbeat active:scale-95"
+              fill="currentColor"
+            />
+
+            {/* Fireworks Particles */}
+            {fireworks.map(p => (
+                <div 
+                    key={p.id}
+                    className="fixed rounded-full pointer-events-none animate-firework z-[100]"
+                    style={{
+                        width: `${p.size}px`,
+                        height: `${p.size}px`,
+                        backgroundColor: p.color,
+                        // @ts-ignore
+                        '--tw-translate-x': `${p.x}px`,
+                        '--tw-translate-y': `${p.y}px`,
+                    }}
+                    ref={(el) => {
+                         if (el) {
+                             const wrapperRect = el.parentElement?.getBoundingClientRect();
+                             if (wrapperRect) {
+                                 // Center relative to the wrapper which is 100% of the click area
+                                 el.style.left = `${wrapperRect.left + wrapperRect.width/2}px`;
+                                 el.style.top = `${wrapperRect.top + wrapperRect.height/2}px`;
+                             }
+                         }
+                    }}
+                />
+            ))}
+         </div>
       </div>
     </div>
   );
