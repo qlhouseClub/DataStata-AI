@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Console } from './components/Console';
@@ -201,7 +202,7 @@ const App: React.FC = () => {
     try {
         const sheetData = getActiveSheet(activeDataset);
         const sampleRows = sheetData.data.slice(0, 3);
-        const analysis = await analyzeData(cmd, sheetData.summaries, sampleRows);
+        const analysis = await analyzeData(cmd, sheetData.summaries, sampleRows, language);
 
         if (analysis.intent === 'CHART' && analysis.chartConfig) {
             const rawConfig = analysis.chartConfig as any;
@@ -210,9 +211,9 @@ const App: React.FC = () => {
                  rawConfig.series = keys.map((k: string) => ({ dataKey: k, label: k }));
             }
             setPopupChart(rawConfig);
-            addLog(LogType.RESPONSE_TEXT, analysis.textResponse);
+            addLog(LogType.RESPONSE_RICH, analysis.textResponse);
         } else {
-            addLog(LogType.RESPONSE_TEXT, analysis.textResponse);
+            addLog(LogType.RESPONSE_RICH, analysis.textResponse);
         }
     } catch (err) {
         addLog(LogType.ERROR, "AI Error.");

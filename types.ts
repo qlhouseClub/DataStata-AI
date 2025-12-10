@@ -1,4 +1,5 @@
 
+
 export interface DataRow {
   [key: string]: string | number | null;
 }
@@ -17,7 +18,8 @@ export interface VariableSummary {
 
 export enum LogType {
   COMMAND = 'COMMAND',
-  RESPONSE_TEXT = 'RESPONSE_TEXT',
+  RESPONSE_TEXT = 'RESPONSE_TEXT', // Monospace (Stata tables)
+  RESPONSE_RICH = 'RESPONSE_RICH', // Markdown (AI Analysis)
   RESPONSE_CHART = 'RESPONSE_CHART',
   ERROR = 'ERROR',
   SYSTEM = 'SYSTEM'
