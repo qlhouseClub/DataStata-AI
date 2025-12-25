@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 import { VariableSummary, ChartConfig, Dataset, FullReport } from '../types';
+import { generatePreComputedContext } from '../utils/analyticsUtils';
 
 const getClient = () => {
   const apiKey = process.env.API_KEY;
@@ -210,13 +211,25 @@ const runReportGeneration = async (
     customDimensions: string[]
 ): Promise<FullReport> => {
     const ai = getClient();
-    const sheetInfo = Object.keys(dataset.sheets).map(name => {
-        return {
-            sheetName: name,
-            summaries: dataset.sheets[name].summaries,
-            sample: dataset.sheets[name].data.slice(0, 3)
-        };
-    });
+    
+    // Extract sheet data for context AND pre-computation
+    const activeSheetName = dataset.activeSheetName;
+    const activeSheet = dataset.sheets[activeSheetName];
+    
+    // 1. Generate Deterministic Aggregations
+    // This solves the "Hallucination" problem by giving Gemini the actual sums/counts
+    const preComputedContext = generatePreComputedContext(
+        activeSheet.data, 
+        activeSheet.summaries, 
+        mode, 
+        customDimensions
+    );
+
+    const sheetInfo = {
+        sheetName: activeSheetName,
+        summaries: activeSheet.summaries,
+        sample: activeSheet.data.slice(0, 3)
+    };
 
     const langMap: Record<string, string> = {
         'en': 'English',
@@ -234,8 +247,10 @@ const runReportGeneration = async (
     
     # Input Data Context
     Dataset Name: ${dataset.name}
-    Sheets Data: 
-    ${JSON.stringify(sheetInfo, null, 2)}
+    Variable Definitions: 
+    ${JSON.stringify(sheetInfo.summaries, null, 2)}
+
+    ${preComputedContext}
     `;
 
     if (mode === 'CUSTOM') {
@@ -248,38 +263,58 @@ const runReportGeneration = async (
 
     prompt += `
     # Report Structure Requirements
-    You MUST generate exactly these 5 sections in the 'sections' array, in this order:
+    You MUST generate exactly these 5 sections in the 'sections' array.
+    
+    **CONTENT REQUIREMENT (For Every Section):**
+    In the 'content' field, you must provide deep analysis using the provided Ground Truth Data.
+    
+    **COVERAGE REQUIREMENT**:
+    - **ALL Variables**: You must scan and analyze ALL numeric and categorical variables provided in the Ground Truth Data. 
+    - **Zero Values**: Do NOT ignore variables just because their values are 0 or low. Explicitly mention that they are low or zero and discuss potential reasons.
 
+    **WRITING STYLE (Bottom Line Up Front):**
+    - **Key Result First**: Start every paragraph with the main statistical finding or conclusion in bold.
+    - **Explanation Second**: Follow the bold statement with the supplementary explanation and context.
+    - **Short Paragraphs**: Use double line breaks. Max 3-4 sentences per paragraph.
+
+    **FORMATTING RULES**:
+    - **Fields**: Always wrap Variable/Column names in backticks (e.g., \`Revenue\`).
+    - **Values**: Always wrap key numerical values in bold stars (e.g., **$50,000** or **12%**).
+    
+    # Section Definitions
     1. **Trend Analysis** ('insightType': 'trend')
-       - Analyze evolution over time. 
-       - CHART REQUIREMENT: Use 'line' or 'bar' chart. **X-Axis MUST be a Date/Time variable**.
+       - Analyze evolution over time. Discuss Growth Rates.
+       - **CHART RULE**: MUST use 'line' chart.
+       - **DATA SOURCE**: Use the 'Trend Data' provided in Ground Truth.
 
     2. **Strength Analysis** ('insightType': 'strength')
-       - Identify top performers, high-growth areas, or competitive advantages.
-       - CHART REQUIREMENT: Use 'bar' or 'treemap'.
+       - Identify top performers.
+       - **CHART RULE**: Use 'bar' chart (Magnitude) OR 'donut' chart (Share).
+       - **DATA SOURCE**: Use the 'Group Data' provided in Ground Truth.
 
     3. **Anomaly Analysis** ('insightType': 'anomaly')
-       - Detect outliers, unusual spikes/drops, or deviations from the mean.
-       - CHART REQUIREMENT: Use 'line' (to show spike) or 'bar'.
+       - Detect outliers. Look for deviation from Mean.
+       - **CHART RULE**: Use 'line' or 'bar'.
 
     4. **Weakness Analysis** ('insightType': 'weakness')
-       - Identify underperforming areas, declining trends, or risks.
-       - CHART REQUIREMENT: Use 'bar' or 'donut'.
+       - Identify underperforming areas. Mention 0-value items here.
+       - **CHART RULE**: Use 'bar' chart.
 
     5. **Comprehensive Recommendations** ('insightType': 'recommendation')
-       - Strategic advice based on the above findings.
-       - No chart required here, but strongly encouraged if it supports the strategy.
+       - Strategic advice based on findings.
+       - No chart required.
 
-    # Chart Rules (STRICT)
-    - **Allowed Types**: 'line', 'bar', 'donut', 'treemap'.
-    - **Time Lock**: For 'line' and 'bar' charts in Trend Analysis, the X-Axis MUST be a time-based variable (Date, Year, Month). If no date exists, use a sequential index or category.
-    - **Donut/Treemap**: Use these for displaying composition or part-to-whole relationships.
-    - **MISSING DATA**: If you cannot create a meaningful chart because the required variables are missing or values are insufficient, set 'chartConfig' to null. Do NOT generate a chart with placeholders.
+    # Chart Configuration Rules (STRICT)
+    - **Line Chart**: Used for Trend.
+    - **Bar Chart**: Used for Magnitude/Relationship comparison.
+    - **Donut Chart**: Used for Proportion/Composition (e.g., share of total).
+    - **Accuracy**: When defining 'chartConfig', 'xAxisKey' and 'series' MUST match the column names in the 'GROUND TRUTH DATA' exactly.
+    - **Null Check**: If Ground Truth data is empty for a section, set 'chartConfig' to null.
 
     # Data Table Requirement
     - For EACH section, you MUST provide 'tableData'.
-    - This should be a structured summary of the key numbers discussed in that section (e.g., Top 5 Products, Year-over-Year Growth table).
-    - Limit tables to 5-10 rows.
+    - **CRITICAL**: The rows in 'tableData' MUST be identical to the 'GROUND TRUTH DATA'.
+    - Do not summarize or invent numbers. Copy the relevant aggregated rows exactly.
 
     # Formatting
     - Report Title Format: "${dataset.name} Analysis Report"
