@@ -11,7 +11,9 @@ interface AggregationResult {
 const isNumeric = (n: any) => !isNaN(parseFloat(n)) && isFinite(n);
 
 /**
- * Aggregates data by a Date column (bucketed by Month/Year ideally, or raw date if sparse)
+ * Aggregates data by a Date column.
+ * UPDATED: Buckets by Day (YYYY-MM-DD) instead of Month.
+ * UPDATED: Uses uniform sampling for large datasets to preserve trend shape.
  */
 export const aggregateByTime = (
     data: DataRow[], 
@@ -26,8 +28,9 @@ export const aggregateByTime = (
         const dateVal = row[dateCol];
         if (!dateVal) return;
 
-        // Simple bucket strategy: Try to grab YYYY-MM
-        let bucketKey = String(dateVal).substring(0, 7); // "2023-01"
+        // Bucket strategy: Grab full YYYY-MM-DD (first 10 chars)
+        // This ensures Daily granularity for charts
+        let bucketKey = String(dateVal).substring(0, 10); 
 
         if (!buckets[bucketKey]) {
             buckets[bucketKey] = { count: 0, sums: {} };
@@ -44,11 +47,18 @@ export const aggregateByTime = (
     });
 
     // Format as CSV-like string for the LLM
-    // Limit to top 24 periods to save tokens
     const sortedKeys = Object.keys(buckets).sort();
-    const limitedKeys = sortedKeys.length > 24 
-        ?  [...sortedKeys.slice(0, 12), ...sortedKeys.slice(-12)] // Show start and end
-        : sortedKeys;
+    
+    // Sampling Logic:
+    // If we have too many days (e.g., 365), we can't send them all to the LLM context effectively.
+    // Instead of taking just the first/last (which breaks the line chart), we sample evenly.
+    const MAX_POINTS = 48; 
+    let limitedKeys = sortedKeys;
+
+    if (sortedKeys.length > MAX_POINTS) {
+        const step = Math.ceil(sortedKeys.length / MAX_POINTS);
+        limitedKeys = sortedKeys.filter((_, index) => index % step === 0);
+    }
 
     // Use pure column name for header to allow direct mapping
     let output = `${dateCol},Count,${numericCols.join(',')}\n`;
@@ -125,7 +135,6 @@ export const generatePreComputedContext = (
     if (scope === 'CUSTOM') {
         numericVars = numericVars.filter(n => customVars.includes(n));
     } 
-    // Previously sliced to 4, now we keep all.
 
     // For cat vars: Pick categorical vars with reasonable cardinality (e.g., < 50 unique)
     // We still filter for distinct < 50 to avoid grouping by unique IDs (which makes no sense for aggregation)
@@ -133,7 +142,6 @@ export const generatePreComputedContext = (
     if (scope === 'CUSTOM') {
         catVars = catVars.filter(c => customVars.includes(c));
     }
-    // Previously sliced to 3, now we keep all valid groupable columns.
 
     if (numericVars.length === 0) return "No numeric variables found for aggregation.";
 
