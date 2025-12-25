@@ -19,7 +19,7 @@ export interface VariableSummary {
 export enum LogType {
   COMMAND = 'COMMAND',
   RESPONSE_TEXT = 'RESPONSE_TEXT', // Monospace (Stata tables)
-  RESPONSE_RICH = 'RESPONSE_RICH', // Markdown (AI Analysis)
+  RESPONSE_RICH = 'RESPONSE_RICH', // Markdown with Viz (AI Analysis)
   RESPONSE_CHART = 'RESPONSE_CHART',
   ERROR = 'ERROR',
   SYSTEM = 'SYSTEM'
@@ -39,6 +39,7 @@ export interface ChartConfig {
   type: 'bar' | 'line' | 'scatter' | 'area' | 'pie' | 'radar' | 'donut' | 'treemap';
   title: string;
   xAxisKey: string;
+  xType?: 'number' | 'category'; // Added to support numeric X axis in Scatter
   // Global filter applied to the X-axis domain (and thus the whole chart)
   xFilter?: {
     column: string;
@@ -83,3 +84,24 @@ export interface ColorPalette {
 export const getActiveSheet = (dataset: Dataset): SheetData => {
   return dataset.sheets[dataset.activeSheetName];
 };
+
+// --- Report Interfaces ---
+export interface ReportTable {
+  headers: string[];
+  rows: (string | number)[][];
+}
+
+export interface ReportSection {
+  title: string;
+  content: string; // Markdown text
+  insightType: 'trend' | 'strength' | 'anomaly' | 'weakness' | 'recommendation'; 
+  chartConfig?: ChartConfig;
+  tableData?: ReportTable; // Structured key data
+}
+
+export interface FullReport {
+  title: string;
+  date: string;
+  summary: string;
+  sections: ReportSection[];
+}

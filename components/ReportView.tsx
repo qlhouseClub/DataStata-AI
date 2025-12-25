@@ -1,0 +1,240 @@
+import React from 'react';
+import { FullReport, Dataset, getActiveSheet, Theme, Language } from '../types';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { ChartRenderer } from './ChartRenderer';
+import { X, FileCode, AlertTriangle, TrendingUp, Info, ShieldCheck, TrendingDown, Lightbulb, Table } from 'lucide-react';
+import { getTranslation } from '../utils/translations';
+
+interface ReportViewProps {
+  report: FullReport;
+  dataset: Dataset;
+  onClose: () => void;
+  language: Language;
+  theme: Theme;
+}
+
+export const ReportView: React.FC<ReportViewProps> = ({ report, dataset, onClose, language, theme }) => {
+  const t = getTranslation(language);
+
+  const handleExportHTML = () => {
+    // HTML template including table styles
+    const content = document.getElementById('report-content')?.innerHTML;
+    if (!content) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="${language}">
+      <head>
+        <meta charset="UTF-8">
+        <title>${report.title}</title>
+        <style>
+          body { font-family: system-ui, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 40px; color: #333; background: #f8f9fa; }
+          .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+          h1 { color: #111; font-weight: 800; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; text-align: left; }
+          h2 { color: #1f2937; margin-top: 30px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+          h3 { color: #374151; }
+          .chart-placeholder { border: 1px dashed #ccc; padding: 20px; text-align: center; background: #f9f9f9; margin: 20px 0; border-radius: 8px; color: #666; font-size: 0.9em; }
+          code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+          ul { padding-left: 20px; }
+          li { margin-bottom: 8px; }
+          strong { color: #2563eb; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9em; }
+          th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+          th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+          tr:nth-child(even) { background-color: #f9fafb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+            <h1>${report.title}</h1>
+            <p style="color: #666; margin-bottom: 40px;"><strong>Date:</strong> ${report.date} &nbsp;|&nbsp; <strong>Dataset:</strong> ${dataset.name}</p>
+            <div id="content">
+            ${content.replace(/<div class="[^"]*chart-container[^"]*">.*?<\/div>/g, '<div class="chart-placeholder">[Chart: See interactive version for visualization]</div>')}
+            </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.title.replace(/\s+/g, '_')}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Helper to find data for charts
+  const getDataForChart = (chartConfig: any) => {
+      const activeSheet = getActiveSheet(dataset);
+      const vars = [chartConfig.xAxisKey, ...chartConfig.series.map((s:any) => s.dataKey)];
+      const hasAll = vars.every(v => activeSheet.columns.includes(v));
+      if (hasAll) return activeSheet.data;
+      
+      for (const key in dataset.sheets) {
+          const sheet = dataset.sheets[key];
+          if (vars.every(v => sheet.columns.includes(v))) return sheet.data;
+      }
+      return [];
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-white dark:bg-gray-900 overflow-y-auto animate-in slide-in-from-bottom-10 duration-300">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between print:hidden">
+         <div className="flex items-center gap-3">
+             <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                 <FileCode className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+             </div>
+             <div>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t.reportView}</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{dataset.name} • {report.date}</p>
+             </div>
+         </div>
+         <div className="flex items-center gap-3">
+             <button 
+                onClick={handleExportHTML}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-200 dark:border-gray-600"
+             >
+                <FileCode className="w-4 h-4" />
+                {t.exportHtml}
+             </button>
+             <button 
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+             >
+                <X className="w-6 h-6" />
+             </button>
+         </div>
+      </div>
+
+      {/* Report Content Container */}
+      <div className="max-w-5xl mx-auto p-8 md:p-12" id="report-content">
+         {/* Title Section */}
+         <div className="text-left mb-12 border-b border-gray-200 dark:border-gray-700 pb-8">
+             <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-6 tracking-tight leading-tight">
+                 {report.title}
+             </h1>
+             <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Executive Summary</h4>
+                <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-light">
+                    {report.summary}
+                </p>
+             </div>
+         </div>
+
+         {/* Sections */}
+         <div className="space-y-20">
+             {report.sections.map((section, idx) => {
+                 // Determine Styling based on Insight Type
+                 let borderColor = "border-gray-200 dark:border-gray-700";
+                 let icon = <Info className="w-6 h-6 text-gray-400" />;
+                 let titleColor = "text-gray-800 dark:text-gray-100";
+                 let bgAccent = "";
+
+                 switch(section.insightType) {
+                     case 'trend':
+                         borderColor = "border-blue-400 dark:border-blue-500";
+                         icon = <TrendingUp className="w-6 h-6 text-blue-500" />;
+                         titleColor = "text-blue-700 dark:text-blue-400";
+                         bgAccent = "bg-blue-50/30 dark:bg-blue-900/10";
+                         break;
+                     case 'strength':
+                         borderColor = "border-emerald-400 dark:border-emerald-500";
+                         icon = <ShieldCheck className="w-6 h-6 text-emerald-500" />;
+                         titleColor = "text-emerald-700 dark:text-emerald-400";
+                         bgAccent = "bg-emerald-50/30 dark:bg-emerald-900/10";
+                         break;
+                     case 'anomaly':
+                         borderColor = "border-amber-400 dark:border-amber-500";
+                         icon = <AlertTriangle className="w-6 h-6 text-amber-500" />;
+                         titleColor = "text-amber-700 dark:text-amber-400";
+                         bgAccent = "bg-amber-50/30 dark:bg-amber-900/10";
+                         break;
+                     case 'weakness':
+                         borderColor = "border-red-400 dark:border-red-500";
+                         icon = <TrendingDown className="w-6 h-6 text-red-500" />;
+                         titleColor = "text-red-700 dark:text-red-400";
+                         bgAccent = "bg-red-50/30 dark:bg-red-900/10";
+                         break;
+                     case 'recommendation':
+                         borderColor = "border-purple-400 dark:border-purple-500";
+                         icon = <Lightbulb className="w-6 h-6 text-purple-500" />;
+                         titleColor = "text-purple-700 dark:text-purple-400";
+                         bgAccent = "bg-purple-50/30 dark:bg-purple-900/10";
+                         break;
+                 }
+
+                 const chartData = section.chartConfig ? getDataForChart(section.chartConfig) : [];
+                 const hasValidChart = section.chartConfig && chartData.length > 0;
+
+                 return (
+                     <div key={idx} className={`break-inside-avoid relative pl-8 border-l-4 ${borderColor} ${bgAccent} rounded-r-2xl p-8 transition-all hover:bg-opacity-70`}>
+                         <div className="flex items-center gap-4 mb-6">
+                            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">{icon}</div>
+                            <h3 className={`text-2xl font-bold ${titleColor} uppercase tracking-wide`}>{section.title}</h3>
+                         </div>
+                         
+                         <div className="mb-8 prose dark:prose-invert max-w-none">
+                            <MarkdownRenderer content={section.content} />
+                         </div>
+
+                         {/* Structured Data Table */}
+                         {section.tableData && section.tableData.rows.length > 0 && (
+                            <div className="my-6 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                                    <Table className="w-4 h-4 text-gray-400"/>
+                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Key Data Points</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-900/50 dark:text-gray-300">
+                                            <tr>
+                                                {section.tableData.headers.map((h, i) => (
+                                                    <th key={i} className="px-6 py-3 font-semibold">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {section.tableData.rows.map((row, rIdx) => (
+                                                <tr key={rIdx} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    {row.map((cell, cIdx) => (
+                                                        <td key={cIdx} className="px-6 py-3 font-mono text-gray-600 dark:text-gray-300">
+                                                            {cell}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                         )}
+
+                         {hasValidChart && (
+                             <div className="mt-8 h-[400px] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 chart-container overflow-hidden ring-1 ring-black/5">
+                                 <ChartRenderer 
+                                    config={section.chartConfig!} 
+                                    data={chartData} 
+                                    theme={theme} 
+                                 />
+                                 <div className="text-center mt-4 text-xs text-gray-400 font-medium tracking-wide">
+                                     Figure {idx + 1}: {section.chartConfig!.title}
+                                 </div>
+                             </div>
+                         )}
+                     </div>
+                 );
+             })}
+         </div>
+         
+         <div className="mt-20 pt-8 border-t border-gray-100 dark:border-gray-800 text-center flex flex-col items-center gap-2">
+             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">DS</div>
+             <div className="text-sm text-gray-400 font-medium">Generated by DataStata.AI</div>
+         </div>
+      </div>
+    </div>
+  );
+};

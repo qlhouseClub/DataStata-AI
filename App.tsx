@@ -1,16 +1,17 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Console } from './components/Console';
 import { DataGrid } from './components/DataGrid';
 import { ChartWindow } from './components/ChartWindow';
 import { HelpModal } from './components/HelpModal';
-import { LogEntry, LogType, DataRow, Dataset, SheetData, getActiveSheet, Language, ChartConfig, Theme } from './types';
+import { ReportView } from './components/ReportView';
+import { LoadingModal } from './components/LoadingModal';
+import { DimensionSelector } from './components/DimensionSelector';
+import { LogEntry, LogType, Dataset, SheetData, getActiveSheet, Language, ChartConfig, Theme, FullReport } from './types';
 import { parseCSV, generateSummaries, parseExcel } from './utils/dataUtils';
-import { analyzeData } from './services/geminiService';
+import { analyzeData, generateFullReport, generateCustomReport } from './services/geminiService';
 import { interpretStataCommand } from './services/stataInterpreter';
-import { Loader2, Terminal, Send, List, Activity, Trash2, LayoutTemplate, CircleHelp } from 'lucide-react';
+import { Loader2, Terminal, Send, List, Activity, Trash2, LayoutTemplate, CircleHelp, Sparkles, Filter } from 'lucide-react';
 import { getTranslation } from './utils/translations';
 
 const App: React.FC = () => {
@@ -24,6 +25,11 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
   
   const [popupChart, setPopupChart] = useState<ChartConfig | null>(null);
+  const [fullReport, setFullReport] = useState<FullReport | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  
+  const [isDimensionSelectorOpen, setIsDimensionSelectorOpen] = useState(false);
+
   const [commandInput, setCommandInput] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [apiKeyError, setApiKeyError] = useState(false);
@@ -142,12 +148,64 @@ const App: React.FC = () => {
       addLog(LogType.SYSTEM, "Dataset removed.");
   };
 
-  const handleCommand = async (e?: React.FormEvent) => {
+  const handleFullAnalysis = async () => {
+    const activeDataset = datasets.find(d => d.id === activeDatasetId);
+    if (!activeDataset) {
+        addLog(LogType.ERROR, "No dataset loaded for analysis.");
+        return;
+    }
+
+    setIsGeneratingReport(true);
+    addLog(LogType.SYSTEM, "Starting Full Analysis...");
+
+    try {
+        const report = await generateFullReport(activeDataset, language);
+        setFullReport(report);
+        addLog(LogType.RESPONSE_RICH, `**Report Generated**: ${report.title}`);
+    } catch (e) {
+        addLog(LogType.ERROR, "Analysis Failed. Please try again.");
+    } finally {
+        setIsGeneratingReport(false);
+    }
+  };
+
+  const handleCustomAnalysis = async (selectedVars: string[]) => {
+      setIsDimensionSelectorOpen(false);
+      const activeDataset = datasets.find(d => d.id === activeDatasetId);
+      if (!activeDataset) return;
+
+      // Automatically include any Date/Time variables to support trend analysis
+      const activeSheet = getActiveSheet(activeDataset);
+      const dateVars = activeSheet.summaries.filter(s => s.type === 'date').map(s => s.name);
+      
+      // Combine and deduplicate
+      const finalVars = Array.from(new Set([...selectedVars, ...dateVars]));
+
+      if (finalVars.length === 0) {
+          addLog(LogType.ERROR, "No variables selected for analysis.");
+          return;
+      }
+
+      setIsGeneratingReport(true);
+      addLog(LogType.SYSTEM, `Starting Custom Analysis on: ${finalVars.join(', ')}...`);
+
+      try {
+          const report = await generateCustomReport(activeDataset, language, finalVars);
+          setFullReport(report);
+          addLog(LogType.RESPONSE_RICH, `**Custom Report Generated**: ${report.title}`);
+      } catch (e) {
+          addLog(LogType.ERROR, "Custom Analysis Failed.");
+      } finally {
+          setIsGeneratingReport(false);
+      }
+  };
+
+  const handleCommand = async (e?: React.FormEvent, overrideCmd?: string) => {
     if (e) e.preventDefault();
-    const cmd = commandInput.trim();
+    const cmd = overrideCmd || commandInput.trim();
     if (!cmd || isProcessing) return;
 
-    setCommandInput('');
+    if (!overrideCmd) setCommandInput('');
     
     if (apiKeyError) {
         addLog(LogType.COMMAND, cmd);
@@ -207,7 +265,12 @@ const App: React.FC = () => {
         if (analysis.intent === 'CHART' && analysis.chartConfig) {
             const rawConfig = analysis.chartConfig as any;
             if (!rawConfig.series && rawConfig.yAxisKey) {
-                 const keys = Array.isArray(rawConfig.yAxisKey) ? rawConfig.yAxisKey : [rawConfig.yAxisKey];
+                 let keys: string[] = [];
+                 if (Array.isArray(rawConfig.yAxisKey)) {
+                     keys = rawConfig.yAxisKey;
+                 } else if (typeof rawConfig.yAxisKey === 'string') {
+                     keys = rawConfig.yAxisKey.split(',').map((k: string) => k.trim());
+                 }
                  rawConfig.series = keys.map((k: string) => ({ dataKey: k, label: k }));
             }
             setPopupChart(rawConfig);
@@ -266,7 +329,7 @@ const App: React.FC = () => {
                 onClose={() => {}}
                 onGenerateChart={(cmd) => {
                     setCommandInput(cmd);
-                    handleCommand(); 
+                    handleCommand(undefined, cmd); 
                 }}
                 language={language}
                 theme={theme}
@@ -292,11 +355,33 @@ const App: React.FC = () => {
                     theme={theme}
                 />
             )}
+
+            {fullReport && activeDataset && (
+                <ReportView 
+                    report={fullReport}
+                    dataset={activeDataset}
+                    onClose={() => setFullReport(null)}
+                    language={language}
+                    theme={theme}
+                />
+            )}
             
+            {isGeneratingReport && <LoadingModal language={language} />}
+
             {isHelpOpen && (
                 <HelpModal 
                     onClose={() => setIsHelpOpen(false)}
                     language={language}
+                />
+            )}
+
+            {isDimensionSelectorOpen && activeDataset && (
+                <DimensionSelector
+                    summaries={getActiveSheet(activeDataset).summaries}
+                    onConfirm={handleCustomAnalysis}
+                    onClose={() => setIsDimensionSelectorOpen(false)}
+                    language={language}
+                    theme={theme}
                 />
             )}
         </div>
@@ -306,11 +391,35 @@ const App: React.FC = () => {
             style={{ height: isInputFocused ? '180px' : '100px' }}
         >
             {/* Quick Actions Bar - Always Visible */}
-            <div className="h-10 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center px-4 gap-2 shrink-0">
+            <div className="h-10 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center px-4 gap-2 shrink-0 relative">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-2">{t.quickActions}:</span>
+                
+                {/* Full Analysis Button */}
+                <button 
+                    onClick={handleFullAnalysis}
+                    className="px-3 py-1 text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-100 dark:hover:bg-purple-900/50 flex items-center gap-1 font-medium border border-purple-200 dark:border-purple-800"
+                >
+                    <Sparkles className="w-3 h-3"/> {t.fullAnalysis}
+                </button>
+
+                {/* Custom Analysis Button */}
+                <button 
+                    onClick={() => {
+                        if (!activeDatasetId) {
+                            addLog(LogType.ERROR, "Load a dataset first.");
+                            return;
+                        }
+                        setIsDimensionSelectorOpen(true);
+                    }}
+                    className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-1 font-medium border border-indigo-200 dark:border-indigo-800"
+                >
+                    <Filter className="w-3 h-3"/> {t.customAnalysis}
+                </button>
+
                 <button onClick={() => insertCommand('summarize')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><List className="w-3 h-3"/> summarize</button>
                 <button onClick={() => insertCommand('describe')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><LayoutTemplate className="w-3 h-3"/> describe</button>
                 <button onClick={() => insertCommand('list in 1/10')} className="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1"><Activity className="w-3 h-3"/> list</button>
+                
                 <div className="ml-auto flex items-center gap-2">
                      <button 
                         onClick={() => setIsHelpOpen(true)} 
@@ -323,7 +432,7 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleCommand} className="flex-1 flex items-center p-3 relative min-h-0">
+            <form onSubmit={(e) => handleCommand(e)} className="flex-1 flex items-center p-3 relative min-h-0">
                  <div className="absolute left-6 top-6 text-gray-400">
                     <Terminal className="w-5 h-5" />
                  </div>

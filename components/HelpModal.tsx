@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { X, Book, Database, Terminal, Sparkles, PieChart, ArrowRight, MousePointer, Maximize2, Layers, Hash, Type as TypeIcon, Calendar, Activity, Play, ChevronRight, LayoutTemplate } from 'lucide-react';
+import { X, Book, Database, Terminal, Sparkles, PieChart, ArrowRight, MousePointer, Maximize2, Layers, Hash, Type as TypeIcon, Calendar, Activity, Play, ChevronRight, LayoutTemplate, Copy, Merge, ArrowDown } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation } from '../utils/translations';
 
@@ -28,7 +27,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
     // 1. Interface Anatomy (Neutral)
     if (type === 'interface_anatomy') {
         return (
-            <div className="my-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900">
+            <div className="my-6 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900 shadow-sm">
                 <div className="flex h-48">
                     {/* Fake Sidebar */}
                     <div className="w-1/4 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-2 relative">
@@ -73,9 +72,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
                 
                 {/* Step 1 */}
                 <div className="relative pl-10 mb-6">
-                    <div className="absolute left-1 top-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-4 border-white dark:border-gray-800">1</div>
+                    <div className="absolute left-1 top-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-4 border-white dark:border-gray-800 shadow-sm">1</div>
                     <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">Load Data</h4>
-                    <div className="mt-2 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs flex items-center gap-2">
+                    <div className="mt-2 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs flex items-center gap-2 shadow-sm">
                         <LayoutTemplate className="w-4 h-4 text-gray-400"/>
                         <span>Upload <code>data.csv</code> &rarr; Frame Created</span>
                     </div>
@@ -83,24 +82,21 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
 
                 {/* Step 2 */}
                 <div className="relative pl-10 mb-6">
-                    <div className="absolute left-1 top-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-4 border-white dark:border-gray-800">2</div>
-                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">Inspect</h4>
-                    <div className="mt-2 p-2 bg-gray-900 text-white rounded font-mono text-xs">
-                        <span className="text-gray-400">.</span> summarize price
+                    <div className="absolute left-1 top-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-4 border-white dark:border-gray-800 shadow-sm">2</div>
+                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">Inspect & Clean</h4>
+                    <div className="mt-2 p-2 bg-gray-800 text-gray-300 rounded font-mono text-xs shadow-sm border border-gray-700">
+                        <span className="text-gray-500">.</span> summarize price
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-1">Check Min, Max, Mean values to understand range.</div>
+                    <div className="text-[10px] text-gray-400 mt-1">Check Min, Max, Mean values.</div>
                 </div>
 
                 {/* Step 3 */}
                 <div className="relative pl-10">
-                    <div className="absolute left-1 top-0 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-4 border-white dark:border-gray-800">3</div>
-                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">Analyze & Visualize</h4>
-                    <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded text-xs">
-                        <p className="font-semibold text-indigo-700 dark:text-indigo-300 mb-1">Input (Natural Language):</p>
-                        <p className="italic">"Plot a scatter of price vs mpg"</p>
-                        <div className="mt-2 h-16 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded flex items-center justify-center text-gray-400">
-                            [Chart Generated Automatically]
-                        </div>
+                    <div className="absolute left-1 top-0 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-4 border-white dark:border-gray-800 shadow-sm">3</div>
+                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">AI Analysis</h4>
+                    <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded text-xs shadow-sm">
+                        <p className="font-semibold text-indigo-700 dark:text-indigo-300 mb-1 flex items-center gap-1"><Sparkles className="w-3 h-3"/> Insight Generation:</p>
+                        <p className="italic text-gray-600 dark:text-gray-400">"Trend Analysis, Strength, Weakness, Anomaly..."</p>
                     </div>
                 </div>
             </div>
@@ -111,20 +107,20 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
     if (type === 'variable_types') {
         return (
             <div className="my-4 grid grid-cols-3 gap-2">
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-900/50 flex flex-col items-center text-center">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50 flex flex-col items-center text-center shadow-sm">
                     <Hash className="w-5 h-5 text-blue-500 mb-1"/>
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Numeric</span>
                     <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">Integers, Floats.<br/>Use for math.</span>
                 </div>
-                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-100 dark:border-orange-900/50 flex flex-col items-center text-center">
+                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-100 dark:border-orange-900/50 flex flex-col items-center text-center shadow-sm">
                     <TypeIcon className="w-5 h-5 text-orange-500 mb-1"/>
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">String</span>
                     <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">Text, Categories.<br/>Use for grouping.</span>
                 </div>
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900/50 flex flex-col items-center text-center">
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-900/50 flex flex-col items-center text-center shadow-sm">
                     <Calendar className="w-5 h-5 text-green-500 mb-1"/>
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Date</span>
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">Time objects.<br/>Use for timelines.</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-1">Time objects.<br/>YYYY-MM-DD.</span>
                 </div>
             </div>
         )
@@ -138,22 +134,80 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
                 <div className="flex items-center gap-2 text-sm">
                     <div className="flex-1 p-3 bg-gray-100 dark:bg-gray-700 rounded text-center">
                         <div className="font-bold text-gray-700 dark:text-gray-200">X Axis</div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Category / Time</div>
-                        <div className="mt-2 bg-white dark:bg-gray-600 py-1 px-2 rounded text-xs border border-gray-200 dark:border-gray-500">Date</div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Dimension</div>
+                        <div className="mt-2 bg-white dark:bg-gray-600 py-1 px-2 rounded text-xs border border-gray-200 dark:border-gray-500 shadow-sm">Date</div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-gray-400"/>
                     <div className="flex-1 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded text-center border border-indigo-100 dark:border-indigo-800">
                         <div className="font-bold text-indigo-700 dark:text-indigo-300">Y Series</div>
-                        <div className="text-[10px] text-indigo-500 dark:text-indigo-400 mt-1">Values to Measure</div>
+                        <div className="text-[10px] text-indigo-500 dark:text-indigo-400 mt-1">Metrics (Multiple)</div>
                         <div className="mt-2 flex flex-col gap-1">
-                            <div className="bg-white dark:bg-gray-800 py-1 px-2 rounded text-xs border border-indigo-200 dark:border-indigo-700">Revenue</div>
-                            <div className="bg-white dark:bg-gray-800 py-1 px-2 rounded text-xs border border-indigo-200 dark:border-indigo-700">Cost</div>
+                            <div className="bg-white dark:bg-gray-800 py-1 px-2 rounded text-xs border border-indigo-200 dark:border-indigo-700 shadow-sm">Revenue</div>
+                            <div className="bg-white dark:bg-gray-800 py-1 px-2 rounded text-xs border border-indigo-200 dark:border-indigo-700 shadow-sm">Cost</div>
                         </div>
                     </div>
                 </div>
             </div>
         )
     }
+
+    // 5. Frame Logic (New)
+    if (type === 'frame_logic') {
+        return (
+            <div className="my-6 bg-gray-100 dark:bg-gray-900 p-6 rounded-lg flex justify-center items-center relative h-40 border border-gray-200 dark:border-gray-800">
+                {/* Inactive Frame */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 -translate-y-2 w-32 h-24 bg-gray-300 dark:bg-gray-700 rounded-lg border border-gray-400 dark:border-gray-600 shadow-sm flex items-center justify-center z-0 scale-90 opacity-60">
+                    <span className="text-xs font-bold text-gray-500">Frame: Users</span>
+                </div>
+                {/* Active Frame */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 w-36 h-28 bg-white dark:bg-gray-800 rounded-lg border-2 border-blue-500 shadow-lg flex flex-col z-10">
+                    <div className="bg-blue-500 text-white text-[10px] px-2 py-1 font-bold rounded-t-md flex justify-between">
+                        <span>Frame: Sales</span>
+                        <span className="text-blue-200">ACTIVE</span>
+                    </div>
+                    <div className="flex-1 p-2 grid grid-cols-3 gap-1">
+                        <div className="h-full bg-gray-100 dark:bg-gray-700 rounded"></div>
+                        <div className="h-full bg-gray-100 dark:bg-gray-700 rounded"></div>
+                        <div className="h-full bg-gray-100 dark:bg-gray-700 rounded"></div>
+                    </div>
+                </div>
+                <div className="absolute bottom-2 right-4 text-[10px] text-gray-400 italic">
+                    Only one frame active at a time
+                </div>
+            </div>
+        );
+    }
+
+    // 6. Merge Logic (New)
+    if (type === 'merge_logic') {
+        return (
+            <div className="my-6 flex flex-col items-center gap-2">
+                <div className="flex gap-4 items-center">
+                    <div className="w-24 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-center">
+                        <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">Master</div>
+                        <div className="text-[9px] bg-white dark:bg-gray-800 border rounded px-1 mb-0.5 border-blue-200 dark:border-blue-700">ID (Key)</div>
+                        <div className="text-[9px] bg-white dark:bg-gray-800 border rounded px-1 border-blue-200 dark:border-blue-700">Sales</div>
+                    </div>
+                    <div className="text-gray-400"><Copy className="w-4 h-4"/> +</div>
+                    <div className="w-24 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-center">
+                        <div className="text-[10px] font-bold text-green-700 dark:text-green-300 mb-1">Using</div>
+                        <div className="text-[9px] bg-white dark:bg-gray-800 border rounded px-1 mb-0.5 border-green-200 dark:border-green-700">ID (Key)</div>
+                        <div className="text-[9px] bg-white dark:bg-gray-800 border rounded px-1 border-green-200 dark:border-green-700">Email</div>
+                    </div>
+                </div>
+                <ArrowDown className="w-4 h-4 text-gray-400"/>
+                <div className="w-48 p-2 bg-white dark:bg-gray-800 border-2 border-purple-500 rounded shadow-md text-center">
+                    <div className="text-[10px] font-bold text-purple-700 dark:text-purple-300 mb-1">Result (Left Join)</div>
+                    <div className="flex justify-center gap-1">
+                        <div className="text-[9px] bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-2">ID</div>
+                        <div className="text-[9px] bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-2">Sales</div>
+                        <div className="text-[9px] bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded px-2">Email</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return null;
   };
 
@@ -198,7 +252,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose, language }) => {
           
           <div className="p-4 border-t border-gray-200 dark:border-gray-800">
              <div className="text-[10px] text-gray-400 text-center">
-                DataStata.AI v2.2 Documentation
+                DataStata.AI v2.3 Documentation
              </div>
           </div>
         </aside>

@@ -20,7 +20,6 @@ export const parseExcel = (buffer: ArrayBuffer): { [sheetName: string]: DataRow[
         const worksheet = workbook.Sheets[sheetName];
         
         // Use cellDates: true in read() above interprets numbers as dates where appropriate.
-        // Removed cellDates from sheet_to_json options as it is not a valid property there.
         const rawData = utils.sheet_to_json(worksheet, { defval: null }) as any[];
         
         if (rawData.length > 0) {
@@ -35,7 +34,6 @@ export const parseExcel = (buffer: ArrayBuffer): { [sheetName: string]: DataRow[
                     } 
                     else if (typeof val === 'string') {
                         // Attempt to parse string dates that look like dates (e.g. "2025-3-1 0:00")
-                        // We check for common date separators like -, / or : to avoid parsing simple numbers or text
                         if (val.match(/[\d]{1,4}[-/\.][\d]{1,2}[-/\.][\d]{1,4}/)) {
                             const parsed = new Date(val);
                             // Check if valid date
@@ -74,6 +72,7 @@ export const parseCSV = (csvText: string): DataRow[] => {
 
   for (let i = 1; i < lines.length; i++) {
     const currentLine = lines[i];
+    // Regex matches quoted strings OR non-comma sequences
     const matches = currentLine.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || currentLine.split(','); 
     
     const values = matches ? matches : currentLine.split(',');
@@ -83,11 +82,16 @@ export const parseCSV = (csvText: string): DataRow[] => {
       headers.forEach((header, index) => {
         let value: string | number | null = values[index] ? values[index].trim().replace(/^"|"$/g, '') : null;
         
-        if (value !== null && value !== '' && !isNaN(Number(value))) {
-          // If it looks like a number, parse it
-          value = Number(value);
+        if (value !== null && value !== '') {
+            // Advanced Number Parsing: Handle commas (1,000) and currency ($500)
+            // Strip commas and $
+            const cleanVal = String(value).replace(/,/g, '').replace(/^\$/, '');
+            
+            // strict check: strictly digits, dots, minus
+            if (cleanVal !== '' && !isNaN(Number(cleanVal))) {
+                value = Number(cleanVal);
+            }
         } 
-        // We could add date parsing here too if needed for CSVs
         
         row[header] = value;
       });
@@ -107,7 +111,6 @@ export const generateSummaries = (data: DataRow[], columns: string[]): VariableS
     
     const firstVal = values[0];
     const isNumber = typeof firstVal === 'number';
-    // Strict check for our normalized YYYY-MM-DD format
     const isDate = typeof firstVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(firstVal);
     
     const summary: VariableSummary = {
@@ -164,8 +167,6 @@ export const mergeDatasets = (
     usingData: DataRow[], 
     key: string
 ): { mergedData: DataRow[], report: string } => {
-    // 1:1 Merge
-    // Index using data
     const usingMap = new Map<string | number, DataRow>();
     usingData.forEach(row => {
         const val = row[key];
@@ -176,20 +177,17 @@ export const mergeDatasets = (
 
     let matchCount = 0;
     let masterOnlyCount = 0;
-    let usingOnlyCount = 0; // Not fully tracked in simple left join, but we can approximate
 
     const mergedData = masterData.map(mRow => {
         const val = mRow[key];
         if (val !== null && val !== undefined && usingMap.has(val)) {
             matchCount++;
-            return { ...mRow, ...usingMap.get(val)! }; // Master values overwritten by Using if dupes, typical merge default varies
+            return { ...mRow, ...usingMap.get(val)! }; 
         } else {
             masterOnlyCount++;
             return mRow;
         }
     });
-    
-    // Note: This is a Left Join (Keep Master). Stata default merge keeps all usually, but for simplicity we do Left here.
     
     const report = `
     Result                      # of obs.

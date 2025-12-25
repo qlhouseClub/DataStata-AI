@@ -1,10 +1,12 @@
 
 
+
 import React, { useEffect, useRef } from 'react';
 import { LogEntry, LogType, DataRow, Language, Theme } from '../types';
 import { ChartRenderer } from './ChartRenderer';
 import { Loader2, X, Copy, Check, Terminal } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ConsoleProps {
   logs: LogEntry[];
@@ -124,144 +126,4 @@ export const Console: React.FC<ConsoleProps> = ({ logs, isProcessing, data, onCl
       </div>
     </div>
   );
-};
-
-// --- MARKDOWN RENDERER ---
-const parseInline = (text: string) => {
-    // Split by bold and inline code. Note: simplified parser.
-    // Handles **text** and `text`.
-    const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
-    return parts.map((part, idx) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-            return <strong key={idx} className="font-bold text-gray-900 dark:text-gray-100">{part.slice(2, -2)}</strong>;
-        }
-        if (part.startsWith('`') && part.endsWith('`')) {
-            return <code key={idx} className="bg-gray-100 dark:bg-gray-700 text-pink-600 dark:text-pink-400 px-1 py-0.5 rounded font-mono text-xs border border-gray-200 dark:border-gray-600">{part.slice(1, -1)}</code>;
-        }
-        return part;
-    });
-};
-
-const MarkdownRenderer = ({ content }: { content: string }) => {
-    // 1. Split by Code Blocks first to preserve them
-    const parts = content.split(/(```[\s\S]*?```)/g);
-
-    return (
-        <div className="space-y-3 text-sm leading-relaxed font-sans text-gray-700 dark:text-gray-300">
-            {parts.map((part, i) => {
-                if (part.startsWith('```')) {
-                    // Code Block
-                    const code = part.replace(/^```\w*\n?|```$/g, '');
-                    return (
-                        <div key={i} className="bg-gray-50 dark:bg-gray-900/50 rounded-md p-3 font-mono text-xs overflow-x-auto border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
-                             {code}
-                        </div>
-                    );
-                }
-
-                // Regular Markdown Text
-                const lines = part.split(/\n/);
-                const elements: React.ReactNode[] = [];
-                
-                let inList = false;
-                let listItems: React.ReactNode[] = [];
-
-                lines.forEach((line, lineIdx) => {
-                    const trimmed = line.trim();
-                    
-                    // Headers
-                    if (line.match(/^#{1,6}\s/)) {
-                         if (inList) {
-                             elements.push(<ul key={`list-${i}-${lineIdx}`} className="list-disc pl-5 space-y-2 marker:text-blue-500 mb-4">{listItems}</ul>);
-                             listItems = [];
-                             inList = false;
-                         }
-                         const level = line.match(/^#+/)[0].length;
-                         const text = line.replace(/^#+\s/, '');
-                         const sizes = ['text-xl', 'text-lg', 'text-base font-bold', 'text-sm font-bold'];
-                         const margin = level === 1 ? 'mt-6 mb-3' : 'mt-4 mb-2';
-                         elements.push(
-                             <h3 key={`h-${i}-${lineIdx}`} className={`${sizes[level-1] || 'font-bold'} text-gray-900 dark:text-gray-50 ${margin} first:mt-0`}>
-                                 {parseInline(text)}
-                             </h3>
-                         );
-                         return;
-                    }
-
-                    // Lists (Bullets)
-                    // Matches "- " or "* "
-                    if (line.match(/^\s*[-*]\s/)) {
-                        inList = true;
-                        const text = line.replace(/^\s*[-*]\s/, '');
-                        
-                        // Check for "Metric: Value" pattern for enhanced styling
-                        // e.g., "**Revenue**: 50%" or "**Revenue**: $50M"
-                        const metricMatch = text.match(/^\*\*(.*?)\*\*:\s*(.*)$/);
-                        
-                        if (metricMatch) {
-                            // Enhanced List Item with Visualization
-                            const label = metricMatch[1];
-                            const valueStr = metricMatch[2];
-                            
-                            // Try to extract a percentage for bar
-                            let pct = 0;
-                            if (valueStr.includes('%')) {
-                                const num = parseFloat(valueStr);
-                                if (!isNaN(num)) pct = Math.min(100, Math.max(0, num));
-                            }
-
-                            listItems.push(
-                                <li key={`li-${i}-${lineIdx}`} className="pl-1">
-                                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                                        <span className="font-semibold text-gray-800 dark:text-gray-200 min-w-[140px]">{label}:</span>
-                                        <span className="flex-1 text-gray-600 dark:text-gray-300">{parseInline(valueStr)}</span>
-                                    </div>
-                                    {/* Visual Bar if percentage is found or if user explicitly mentions "Growth", "Share" etc and value is number-like */}
-                                    {pct > 0 && (
-                                        <div className="mt-1.5 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden max-w-[200px] mb-1">
-                                            <div 
-                                                className="h-full bg-blue-500 rounded-full transition-all duration-500" 
-                                                style={{ width: `${pct}%` }}
-                                            />
-                                        </div>
-                                    )}
-                                </li>
-                            );
-                        } else {
-                            // Standard List Item
-                            listItems.push(<li key={`li-${i}-${lineIdx}`} className="pl-1">{parseInline(text)}</li>);
-                        }
-                        return;
-                    }
-
-                    // End list if empty line or standard text
-                    if (inList && trimmed === '') {
-                         elements.push(<ul key={`list-${i}-${lineIdx}`} className="list-disc pl-5 space-y-2 marker:text-blue-500 mb-4">{listItems}</ul>);
-                         listItems = [];
-                         inList = false;
-                         return;
-                    }
-                    
-                    if (inList) {
-                        // If it's just text inside a list area but not a bullet, technically part of previous item, 
-                        // but for simple parsing we close list or treat as text.
-                        // Let's close list to be safe.
-                         elements.push(<ul key={`list-${i}-${lineIdx}`} className="list-disc pl-5 space-y-2 marker:text-blue-500 mb-4">{listItems}</ul>);
-                         listItems = [];
-                         inList = false;
-                    }
-
-                    if (trimmed !== '') {
-                        elements.push(<p key={`p-${i}-${lineIdx}`} className="mb-2 last:mb-0">{parseInline(line)}</p>);
-                    }
-                });
-
-                if (inList) {
-                     elements.push(<ul key={`list-end-${i}`} className="list-disc pl-5 space-y-2 marker:text-blue-500 mb-4">{listItems}</ul>);
-                }
-
-                return <div key={i}>{elements}</div>;
-            })}
-        </div>
-    );
 };
