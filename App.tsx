@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Console } from './components/Console';
@@ -9,7 +10,7 @@ import { LoadingModal } from './components/LoadingModal';
 import { DimensionSelector } from './components/DimensionSelector';
 import { LogEntry, LogType, Dataset, SheetData, getActiveSheet, Language, ChartConfig, Theme, FullReport } from './types';
 import { parseCSV, generateSummaries, parseExcel } from './utils/dataUtils';
-import { analyzeData, generateFullReport, generateCustomReport } from './services/geminiService';
+import { analyzeData, generateFullReport, generateCustomReport, translateReport } from './services/geminiService';
 import { interpretStataCommand } from './services/stataInterpreter';
 import { Loader2, Terminal, Send, List, Activity, Trash2, LayoutTemplate, CircleHelp, Sparkles, Filter } from 'lucide-react';
 import { getTranslation } from './utils/translations';
@@ -27,7 +28,11 @@ const App: React.FC = () => {
   const [popupChart, setPopupChart] = useState<ChartConfig | null>(null);
   const [fullReport, setFullReport] = useState<FullReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [loadingMode, setLoadingMode] = useState<'analysis' | 'translation'>('analysis');
   
+  // Track last analysis context for fallback
+  const [lastAnalysisConfig, setLastAnalysisConfig] = useState<{type: 'FULL' | 'CUSTOM', vars?: string[]} | null>(null);
+
   const [isDimensionSelectorOpen, setIsDimensionSelectorOpen] = useState(false);
 
   const [commandInput, setCommandInput] = useState('');
@@ -148,18 +153,22 @@ const App: React.FC = () => {
       addLog(LogType.SYSTEM, "Dataset removed.");
   };
 
-  const handleFullAnalysis = async () => {
+  const handleFullAnalysis = async (langOverride?: Language) => {
     const activeDataset = datasets.find(d => d.id === activeDatasetId);
     if (!activeDataset) {
         addLog(LogType.ERROR, "No dataset loaded for analysis.");
         return;
     }
 
+    setLastAnalysisConfig({ type: 'FULL' });
+    const targetLang = langOverride || language;
+    
+    setLoadingMode('analysis');
     setIsGeneratingReport(true);
-    addLog(LogType.SYSTEM, "Starting Full Analysis...");
+    addLog(LogType.SYSTEM, `Starting Full Analysis (${targetLang})...`);
 
     try {
-        const report = await generateFullReport(activeDataset, language);
+        const report = await generateFullReport(activeDataset, targetLang);
         setFullReport(report);
         addLog(LogType.RESPONSE_RICH, `**Report Generated**: ${report.title}`);
     } catch (e) {
@@ -169,10 +178,13 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCustomAnalysis = async (selectedVars: string[]) => {
+  const handleCustomAnalysis = async (selectedVars: string[], langOverride?: Language) => {
       setIsDimensionSelectorOpen(false);
       const activeDataset = datasets.find(d => d.id === activeDatasetId);
       if (!activeDataset) return;
+      
+      setLastAnalysisConfig({ type: 'CUSTOM', vars: selectedVars });
+      const targetLang = langOverride || language;
 
       // Automatically include any Date/Time variables to support trend analysis
       const activeSheet = getActiveSheet(activeDataset);
@@ -186,17 +198,49 @@ const App: React.FC = () => {
           return;
       }
 
+      setLoadingMode('analysis');
       setIsGeneratingReport(true);
-      addLog(LogType.SYSTEM, `Starting Custom Analysis on: ${finalVars.join(', ')}...`);
+      addLog(LogType.SYSTEM, `Starting Custom Analysis on: ${finalVars.join(', ')} (${targetLang})...`);
 
       try {
-          const report = await generateCustomReport(activeDataset, language, finalVars);
+          const report = await generateCustomReport(activeDataset, targetLang, finalVars);
           setFullReport(report);
           addLog(LogType.RESPONSE_RICH, `**Custom Report Generated**: ${report.title}`);
       } catch (e) {
           addLog(LogType.ERROR, "Custom Analysis Failed.");
       } finally {
           setIsGeneratingReport(false);
+      }
+  };
+
+  const handleReportLanguageChange = async (newLang: Language) => {
+      setLanguage(newLang); // Sync global language setting
+      
+      // If we have an existing report, translate it using AI instead of re-analyzing
+      if (fullReport) {
+          setLoadingMode('translation');
+          setIsGeneratingReport(true);
+          addLog(LogType.SYSTEM, `Translating report to ${newLang}...`);
+          
+          try {
+              const translatedReport = await translateReport(fullReport, newLang);
+              setFullReport(translatedReport);
+              addLog(LogType.SYSTEM, "Report translation complete.");
+          } catch (e) {
+              addLog(LogType.ERROR, "Translation failed. Re-running analysis as fallback.");
+              // Fallback to full re-analysis
+              if (lastAnalysisConfig?.type === 'FULL') {
+                  handleFullAnalysis(newLang);
+              } else if (lastAnalysisConfig?.type === 'CUSTOM' && lastAnalysisConfig.vars) {
+                  handleCustomAnalysis(lastAnalysisConfig.vars, newLang);
+              } else {
+                  handleFullAnalysis(newLang);
+              }
+          } finally {
+              setIsGeneratingReport(false);
+          }
+      } else {
+          // No existing report, just change UI lang
       }
   };
 
@@ -362,11 +406,12 @@ const App: React.FC = () => {
                     dataset={activeDataset}
                     onClose={() => setFullReport(null)}
                     language={language}
+                    onLanguageChange={handleReportLanguageChange}
                     theme={theme}
                 />
             )}
             
-            {isGeneratingReport && <LoadingModal language={language} />}
+            {isGeneratingReport && <LoadingModal language={language} mode={loadingMode} />}
 
             {isHelpOpen && (
                 <HelpModal 
@@ -378,7 +423,7 @@ const App: React.FC = () => {
             {isDimensionSelectorOpen && activeDataset && (
                 <DimensionSelector
                     summaries={getActiveSheet(activeDataset).summaries}
-                    onConfirm={handleCustomAnalysis}
+                    onConfirm={(vars) => handleCustomAnalysis(vars)}
                     onClose={() => setIsDimensionSelectorOpen(false)}
                     language={language}
                     theme={theme}
@@ -396,7 +441,7 @@ const App: React.FC = () => {
                 
                 {/* Full Analysis Button */}
                 <button 
-                    onClick={handleFullAnalysis}
+                    onClick={() => handleFullAnalysis()}
                     className="px-3 py-1 text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-100 dark:hover:bg-purple-900/50 flex items-center gap-1 font-medium border border-purple-200 dark:border-purple-800"
                 >
                     <Sparkles className="w-3 h-3"/> {t.fullAnalysis}

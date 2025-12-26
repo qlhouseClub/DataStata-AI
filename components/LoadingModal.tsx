@@ -1,18 +1,20 @@
+
 import React, { useEffect, useState } from 'react';
-import { Brain, Database, Sparkles, FileSpreadsheet, Search, BarChart3, LineChart } from 'lucide-react';
+import { Brain, Database, Sparkles, FileSpreadsheet, Search, BarChart3, LineChart, Languages } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 import { Language } from '../types';
 
 interface LoadingModalProps {
   language: Language;
+  mode?: 'analysis' | 'translation';
 }
 
-export const LoadingModal: React.FC<LoadingModalProps> = ({ language }) => {
+export const LoadingModal: React.FC<LoadingModalProps> = ({ language, mode = 'analysis' }) => {
   const t = getTranslation(language);
   const [progress, setProgress] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
 
-  const steps = [
+  const analysisSteps = [
     { text: "Ingesting Data Frames...", icon: FileSpreadsheet },
     { text: "Profiling Variables & Types...", icon: Database },
     { text: "Calculating Statistics (Mean, Max, Dist)...", icon: Search },
@@ -22,25 +24,42 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({ language }) => {
     { text: "Finalizing Report...", icon: Sparkles },
   ];
 
+  const translationSteps = [
+    { text: "Reading Report Context...", icon: FileSpreadsheet },
+    { text: "Translating Narrative Content...", icon: Languages },
+    { text: "Localizing Chart Labels...", icon: BarChart3 },
+    { text: "Finalizing Report...", icon: Sparkles },
+  ];
+
+  const steps = mode === 'translation' ? translationSteps : analysisSteps;
+
+  useEffect(() => {
+    // Reset state when mode changes
+    setProgress(0);
+    setStepIndex(0);
+  }, [mode]);
+
   useEffect(() => {
     // Simulate progress
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 98) return 98;
         // Non-linear progress for realism
-        const increment = Math.max(0.5, (100 - prev) / 40); 
+        // Translation is faster than analysis
+        const speedFactor = mode === 'translation' ? 2 : 1;
+        const increment = Math.max(0.5, (100 - prev) / 40) * speedFactor; 
         return prev + increment;
       });
     }, 100);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     // Cycle through steps based on progress thresholds
     const newIndex = Math.floor((progress / 100) * steps.length);
     setStepIndex(Math.min(newIndex, steps.length - 1));
-  }, [progress]);
+  }, [progress, steps.length]);
 
   const CurrentIcon = steps[stepIndex].icon;
 
@@ -61,7 +80,7 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({ language }) => {
         </div>
 
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-            AI Analyzing...
+            {mode === 'translation' ? 'AI Translating...' : 'AI Analyzing...'}
         </h2>
         
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 h-6 transition-all duration-300">

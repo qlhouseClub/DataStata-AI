@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 import { VariableSummary, ChartConfig, Dataset, FullReport } from '../types';
 import { generatePreComputedContext } from '../utils/analyticsUtils';
@@ -202,6 +203,62 @@ export const generateCustomReport = async (
     selectedDimensions: string[]
 ): Promise<FullReport> => {
     return runReportGeneration(dataset, targetLanguageCode, 'CUSTOM', selectedDimensions);
+};
+
+export const translateReport = async (
+    report: FullReport,
+    targetLanguageCode: string
+): Promise<FullReport> => {
+    const ai = getClient();
+    const langMap: Record<string, string> = {
+        'en': 'English',
+        'zh-CN': 'Simplified Chinese',
+        'zh-TW': 'Traditional Chinese',
+        'ja': 'Japanese',
+        'ko': 'Korean'
+    };
+    const targetLang = langMap[targetLanguageCode] || 'English';
+
+    const prompt = `
+    You are a professional data report translator.
+    Task: Translate the *textual content* of this existing Analysis Report into **${targetLang}** while preserving the data structure and values.
+
+    # Instructions
+    1. **Translate** the following fields to ${targetLang}:
+       - root 'title', 'summary'
+       - inside 'sections': 'title', 'content'
+       - inside 'sections.chartConfig': 'title', 'description'
+       - inside 'sections.chartConfig.series': 'label'
+    
+    2. **Preserve Data Integrity**:
+       - Do NOT change 'insightType'.
+       - Do NOT change numerical values in 'tableData'.
+       - **Careful with Headers**: You MAY translate 'headers' in 'tableData' to be more readable in ${targetLang}. 
+       - **CRITICAL**: If you translate 'headers', you MUST update 'xAxisKey' and 'series.dataKey' in 'chartConfig' to match the translated headers exactly.
+       - If 'tableData.rows' contains string labels (e.g. "Low", "High"), translate them. If they are IDs or proper names, keep them.
+
+    # Input Report JSON
+    ${JSON.stringify(report)}
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: reportSchema,
+            }
+        });
+
+        const text = response.text;
+        if (!text) throw new Error("No response from AI");
+        
+        return JSON.parse(text) as FullReport;
+    } catch (error) {
+        console.error("Report Translation Error:", error);
+        throw error;
+    }
 };
 
 const runReportGeneration = async (
